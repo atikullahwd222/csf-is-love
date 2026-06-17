@@ -2453,7 +2453,7 @@ EOD
     unless ( $FORM{action} eq "tailcmd" or $FORM{action} =~ /^cf/ or $FORM{action} eq "logtailcmd" or $FORM{action} eq "loggrepcmd" ) {
         print "<br>\n";
         print "<div class='well well-sm'>csf: v$myv</div>";
-        print "<p>&copy;2006-2023, <a href='http://www.configserver.com' target='_blank'>ConfigServer Services</a> (Jonathan Michaelson)</p>\n";
+        print "<p>Customized by <a href='https://baharihost.com' target='_blank'>BahariHost</a> | Based on ConfigServer Security &amp; Firewall</p>\n";
         print "</div>\n";
     }
 
