@@ -1,5 +1,9 @@
 # BahariHost CSF Changelog
 
+## 1.2.2 - 2026-06-17
+
+- Renamed dashboard labels from BahariHost to BIT for the build/control header.
+
 ## 1.2.1 - 2026-06-17
 
 - Clarified dashboard block counts by separating active CSF blocks from recent lfd log activity.

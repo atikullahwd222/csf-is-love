@@ -2258,7 +2258,7 @@ EOD
         print $status;
 
         print "<div class='bahari-shell'>\n";
-        print "<h3>BahariHost CSF Control <span class='bahari-badge'>WHM Hardened</span></h3>\n";
+        print "<h3>BIT CSF Control <span class='bahari-badge'>WHM Hardened</span></h3>\n";
         print "<p>A focused operations dashboard for firewall health, rescue controls, DDoS response, safe admin access, and rollback.</p>\n";
         print "</div>\n";
 
@@ -2280,7 +2280,7 @@ EOD
         print "<div class='bahari-card'><span>Active Blocks</span><strong>$permban_count / $tempban_count</strong><small>Permanent / temporary now</small></div>\n";
         print "<div class='bahari-card'><span>Recent Attack IPs</span><strong>$recent_attack_ips</strong><small>$recent_attack_events lfd log events</small></div>\n";
         print "<div class='bahari-card'><span>Allowed IPs</span><strong>$permallow_count</strong><small>Permanent allows</small></div>\n";
-        print "<div class='bahari-card'><span>BahariHost Build</span><strong>$bahari_version</strong><small>Custom layer version</small></div>\n";
+        print "<div class='bahari-card'><span>BIT Build</span><strong>$bahari_version</strong><small>Custom layer version</small></div>\n";
         print "</div>\n";
 
         print "<div class='bahari-actions'>\n";
