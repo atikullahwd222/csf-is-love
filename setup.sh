@@ -11,7 +11,47 @@ if [ ! -d /usr/local/cpanel ] || [ ! -x /usr/local/cpanel/cpanel ]; then
     exit 1
 fi
 
-cd "$(dirname "$0")"
+REPO_RAW_URL="${REPO_RAW_URL:-https://raw.githubusercontent.com/atikullahwd222/csf-is-love/refs/heads/main}"
+SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)"
+TMP_DIR=""
+
+cleanup() {
+    if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
+        rm -rf "$TMP_DIR"
+    fi
+}
+trap cleanup EXIT
+
+fetch_file() {
+    local path="$1"
+    local dest="$2"
+    local url="$REPO_RAW_URL/$path"
+
+    mkdir -p "$(dirname "$dest")"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url" -o "$dest"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$dest" "$url"
+    else
+        echo "ERROR: curl or wget is required to fetch $path"
+        exit 1
+    fi
+}
+
+prepare_sources() {
+    if [ -f "$SOURCE_DIR/lib/ConfigServer/DisplayUI.pm" ] \
+        && [ -f "$SOURCE_DIR/cpanel/csf.cgi" ] \
+        && [ -f "$SOURCE_DIR/cpanel/csf.tmpl" ]; then
+        return
+    fi
+
+    echo "Local repo files not found; fetching required files from GitHub..."
+    TMP_DIR="$(mktemp -d)"
+    fetch_file "lib/ConfigServer/DisplayUI.pm" "$TMP_DIR/lib/ConfigServer/DisplayUI.pm"
+    fetch_file "cpanel/csf.cgi" "$TMP_DIR/cpanel/csf.cgi"
+    fetch_file "cpanel/csf.tmpl" "$TMP_DIR/cpanel/csf.tmpl"
+    SOURCE_DIR="$TMP_DIR"
+}
 
 timestamp="$(date +%Y%m%d%H%M%S)"
 
@@ -54,6 +94,7 @@ set_csf_option() {
 }
 
 install_csf
+prepare_sources
 
 echo "Backing up current files..."
 backup_file /etc/csf/csf.conf
@@ -62,9 +103,9 @@ backup_file /usr/local/cpanel/whostmgr/docroot/cgi/configserver/csf.cgi
 backup_file /usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl
 
 echo "Installing modified WHM UI files..."
-install -m 0644 lib/ConfigServer/DisplayUI.pm /usr/local/csf/lib/ConfigServer/DisplayUI.pm
-install -m 0700 cpanel/csf.cgi /usr/local/cpanel/whostmgr/docroot/cgi/configserver/csf.cgi
-install -m 0644 cpanel/csf.tmpl /usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl
+install -m 0644 "$SOURCE_DIR/lib/ConfigServer/DisplayUI.pm" /usr/local/csf/lib/ConfigServer/DisplayUI.pm
+install -m 0700 "$SOURCE_DIR/cpanel/csf.cgi" /usr/local/cpanel/whostmgr/docroot/cgi/configserver/csf.cgi
+install -m 0644 "$SOURCE_DIR/cpanel/csf.tmpl" /usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl
 
 echo "Applying CSF settings..."
 set_csf_option DROP_ONLYRES "1"
