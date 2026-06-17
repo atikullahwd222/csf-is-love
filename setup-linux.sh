@@ -65,8 +65,24 @@ backup_file() {
     fi
 }
 
+fix_perl_shebang() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        sed -i '1s|^#!.*perl.*$|#!/usr/bin/env perl|' "$file"
+    fi
+}
+
+csf_install_looks_valid() {
+    [ -x /usr/sbin/csf ] || return 1
+    [ -x /usr/sbin/lfd ] || return 1
+    [ -f /etc/csf/csf.conf ] || return 1
+    ! head -n 1 /usr/sbin/csf 2>/dev/null | grep -q "/usr/local/cpanel/3rdparty/bin/perl" || return 1
+    ! head -n 1 /usr/sbin/lfd 2>/dev/null | grep -q "/usr/local/cpanel/3rdparty/bin/perl" || return 1
+    return 0
+}
+
 install_csf() {
-    if command -v csf >/dev/null 2>&1 && [ -f /etc/csf/csf.conf ]; then
+    if csf_install_looks_valid; then
         echo "CSF already installed. Keeping current install and applying hardening."
         return
     fi
@@ -101,6 +117,12 @@ install_csf() {
     install -m 0700 "$source_dir/bin/regex.custom.pm" /usr/local/csf/bin/
     install -m 0700 "$source_dir/bin/remove_apf_bfd.sh" /usr/local/csf/bin/
     install -m 0700 "$source_dir/bin/auto.pl" /usr/local/csf/bin/
+    fix_perl_shebang /usr/sbin/csf
+    fix_perl_shebang /usr/sbin/lfd
+    fix_perl_shebang /usr/local/csf/bin/csftest.pl
+    fix_perl_shebang /usr/local/csf/bin/pt_deleted_action.pl
+    fix_perl_shebang /usr/local/csf/bin/regex.custom.pm
+    fix_perl_shebang /usr/local/csf/bin/auto.pl
 
     cp -a "$source_dir/lib/." /usr/local/csf/lib/
     cp -a "$source_dir/tpl/." /usr/local/csf/tpl/

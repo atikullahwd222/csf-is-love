@@ -1,5 +1,10 @@
 # BahariHost CSF Changelog
 
+## 1.2.8 - 2026-06-17
+
+- Fixed plain Linux installer shebangs so CSF/lfd use the system Perl instead of cPanel Perl.
+- Added broken install detection and repair for previous plain Linux installs.
+
 ## 1.2.7 - 2026-06-17
 
 - Changed plain Linux installer to use the GitHub repository archive instead of `download.configserver.com`.
