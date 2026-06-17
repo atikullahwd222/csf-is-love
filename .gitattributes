@@ -1,4 +1,5 @@
 .gitattributes text eol=lf
+BAHARI_VERSION text eol=lf
 *.sh text eol=lf
 *.cgi text eol=lf
 *.pm text eol=lf
