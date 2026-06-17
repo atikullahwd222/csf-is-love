@@ -1096,6 +1096,14 @@ EOF
         _recommended_hardening();
         _printreturn();
     }
+    elsif ( $FORM{action} eq "cphulkbaseline" ) {
+        _cphulk_baseline();
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "imunifybaseline" ) {
+        _imunify_baseline();
+        _printreturn();
+    }
     elsif ( $FORM{action} eq "rollbackpanel" ) {
         _rollback_panel();
         _printreturn();
@@ -2288,6 +2296,8 @@ EOD
         print "<form action='$script' method='post'><button name='action' value='baharichangelog' type='submit' class='btn btn-default'>Changelog</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='attackdashboard' type='submit' class='btn btn-default'>Recent Attack Dashboard</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='recommendedhardening' type='submit' class='btn btn-primary'>Apply Recommended Hardening</button></form>\n";
+        print "<form action='$script' method='post'><button name='action' value='cphulkbaseline' type='submit' class='btn btn-primary'>Apply cPHulk Baseline</button></form>\n";
+        print "<form action='$script' method='post'><button name='action' value='imunifybaseline' type='submit' class='btn btn-primary'>Apply Imunify Baseline</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='ddosattack' type='submit' class='btn btn-danger'>Enable Attack Mode</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='whitelistme' type='submit' class='btn btn-success'>Whitelist My WHM IP</button></form>\n";
         print "</div>\n";
@@ -2362,6 +2372,8 @@ EOD
         print "<tr><td><button onClick='\$(\"#adminsafedel\").submit();' class='btn btn-default'>Remove Safe Admin IP</button></td><td style='width:100%'><form action='$script' method='post' id='adminsafedel'><input type='submit' class='hide'><input type='hidden' name='action' value='adminsafedel'>Remove IP address <input type='text' name='ip' value='' size='18'> from csf.allow and csf.ignore</form></td></tr>\n";
         print "<tr><td><form action='$script' method='post'><button name='action' value='attackdashboard' type='submit' class='btn btn-default'>Recent Attack Dashboard</button></form></td><td style='width:100%'>Summarize recent lfd blocks and provide quick unblock/allow actions</td></tr>\n";
         print "<tr><td><form action='$script' method='post'><button name='action' value='recommendedhardening' type='submit' class='btn btn-primary'>Apply Recommended Hardening</button></form></td><td style='width:100%'>Apply a safe cPanel baseline for login failures, syslog protection, block limits, and flood controls</td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='cphulkbaseline' type='submit' class='btn btn-primary'>Apply cPHulk Baseline</button></form></td><td style='width:100%'>Enable cPHulk, set login failure windows/limits, whitelist Bangladesh, and restart cphulkd</td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='imunifybaseline' type='submit' class='btn btn-primary'>Apply Imunify Baseline</button></form></td><td style='width:100%'>Enable Imunify360 DoS, CSF integration, account protection, active response, WebShield, PAM, mail, and anti-bot protections where available</td></tr>\n";
         print "<tr><td><form action='$script' method='post'><button name='action' value='rollbackpanel' type='submit' class='btn btn-default'>Emergency Rollback</button></form></td><td style='width:100%'>Restore a recent csf.conf backup and restart csf/lfd</td></tr>\n";
         print "</table>\n";
 
@@ -3444,6 +3456,66 @@ sub _recommended_hardening {
     print "\nRestarting csf and lfd\n";
     _printcmd( "/usr/sbin/csf", "-r" );
     _print_lfd_restart();
+    print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+    return;
+}
+
+sub _cphulk_baseline {
+    my $whmapi1 = -x "/usr/local/cpanel/bin/whmapi1" ? "/usr/local/cpanel/bin/whmapi1" : -x "/usr/bin/whmapi1" ? "/usr/bin/whmapi1" : -x "/bin/whmapi1" ? "/bin/whmapi1" : "";
+
+    print "<div><p>Applying cPHulk baseline...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+    if ( !length $whmapi1 ) {
+        print "whmapi1 not found. This action must run on a cPanel/WHM server.\n";
+    }
+    else {
+        _printcmd( $whmapi1, "enable_cphulk" );
+        _printcmd( $whmapi1, "set_cphulk_config_key", "key=brute_force_period_mins",    "value=10" );
+        _printcmd( $whmapi1, "set_cphulk_config_key", "key=max_failures",               "value=10" );
+        _printcmd( $whmapi1, "set_cphulk_config_key", "key=ip_brute_force_period_mins", "value=15" );
+        _printcmd( $whmapi1, "set_cphulk_config_key", "key=max_failures_byip",          "value=15" );
+        _printcmd( $whmapi1, "set_cphulk_config_key", "key=mark_as_brute",              "value=50" );
+        _printcmd( $whmapi1, "set_cphulk_config_key", "key=country_whitelist",          "value=BD" );
+        if ( -x "/usr/local/cpanel/scripts/restartsrv_cphulkd" ) {
+            _printcmd("/usr/local/cpanel/scripts/restartsrv_cphulkd");
+        }
+        elsif ( -x "/scripts/restartsrv_cphulkd" ) {
+            _printcmd("/scripts/restartsrv_cphulkd");
+        }
+        else {
+            _printcmd( "systemctl", "restart", "cphulkd" );
+        }
+    }
+    print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+    return;
+}
+
+sub _imunify_baseline {
+    my $agent = -x "/usr/bin/imunify360-agent" ? "/usr/bin/imunify360-agent" : -x "/bin/imunify360-agent" ? "/bin/imunify360-agent" : -x "/usr/local/bin/imunify360-agent" ? "/usr/local/bin/imunify360-agent" : "";
+    my @updates = (
+        '{"DOS":{"enabled":true,"default_limit":100}}',
+        '{"ENHANCED_DOS":{"enabled":true,"default_limit":100}}',
+        '{"CSF_INTEGRATION":{"catch_lfd_events":true}}',
+        '{"CPANEL_ACCOUNT_PROTECTION":{"enable":true}}',
+        '{"OSSEC":{"active_response":true}}',
+        '{"WEBSHIELD":{"enable":true,"known_proxies_support":true}}',
+        '{"PAM":{"enable":true,"exim_dovecot_protection":true,"ftp_protection":true}}',
+        '{"MOD_SEC":{"ruleset":"FULL"}}',
+    );
+
+    print "<div><p>Applying Imunify360 baseline...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+    if ( !length $agent ) {
+        print "imunify360-agent not found. Install Imunify360 first, then run this action.\n";
+    }
+    else {
+        foreach my $json (@updates) {
+            print "imunify360-agent config update $json\n";
+            _printcmd( $agent, "config", "update", $json );
+        }
+        if ( -x "/bin/systemctl" or -x "/usr/bin/systemctl" ) {
+            _printcmd( "systemctl", "restart", "imunify360" );
+        }
+        print "\nSome options depend on the installed Imunify360 version/license. Unsupported keys may be ignored or reported above.\n";
+    }
     print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
     return;
 }

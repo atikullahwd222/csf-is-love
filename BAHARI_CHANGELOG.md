@@ -1,5 +1,10 @@
 # BahariHost CSF Changelog
 
+## 1.2.3 - 2026-06-17
+
+- Added cPHulk and Imunify360 baseline buttons to the CSF dashboard.
+- Added standalone bash scripts for applying cPHulk and Imunify360 recommended baselines.
+
 ## 1.2.2 - 2026-06-17
 
 - Renamed dashboard labels from BahariHost to BIT for the build/control header.
