@@ -1076,6 +1076,10 @@ EOF
         _bahari_update_install();
         _printreturn();
     }
+    elsif ( $FORM{action} eq "baharichangelog" ) {
+        _bahari_changelog_page();
+        _printreturn();
+    }
     elsif ( $FORM{action} eq "adminsafeadd" ) {
         _admin_safe_ip( "add", $FORM{ip}, $FORM{comment} );
         _printreturn();
@@ -2279,6 +2283,7 @@ EOD
 
         print "<div class='bahari-actions'>\n";
         print "<form action='$script' method='post'><button name='action' value='bahariupdate' type='submit' class='btn btn-default'>Check for Update</button></form>\n";
+        print "<form action='$script' method='post'><button name='action' value='baharichangelog' type='submit' class='btn btn-default'>Changelog</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='attackdashboard' type='submit' class='btn btn-default'>Recent Attack Dashboard</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='recommendedhardening' type='submit' class='btn btn-primary'>Apply Recommended Hardening</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='ddosattack' type='submit' class='btn btn-danger'>Enable Attack Mode</button></form>\n";
@@ -3062,6 +3067,33 @@ sub _bahari_update_panel {
         print "<div class='bs-callout bs-callout-info'><h4>Update available</h4><p>Install the latest files from GitHub on this server.</p></div>\n";
         print "<form action='$script' method='post'><input type='hidden' name='action' value='bahariupdateinstall'><input type='submit' class='btn btn-primary' value='Install Update Now'></form>\n";
     }
+    print "<br><form action='$script' method='post'><input type='hidden' name='action' value='baharichangelog'><input type='submit' class='btn btn-default' value='View Changelog'></form>\n";
+    return;
+}
+
+sub _bahari_changelog_page {
+    my $file = "/usr/local/csf/bahari_changelog.md";
+    my @data;
+
+    if ( -e $file ) {
+        @data = slurpee( $file, 'warn' => 0 );
+    }
+    else {
+        my $url = "https://raw.githubusercontent.com/atikullahwd222/csf-is-love/refs/heads/main/BAHARI_CHANGELOG.md?ts=" . time;
+        my ( $status, $content ) = $urlget->urlget( $url, undef, 1 );
+        @data = $status ? ("Unable to fetch changelog: $content\n") : split( /\n/, $content );
+    }
+
+    print "<div class='bahari-shell'>\n";
+    print "<h3>BahariHost CSF Changelog</h3>\n";
+    print "<p>Release notes for the custom WHM layer.</p>\n";
+    print "</div>\n";
+    print "<pre class='comment' style='white-space: pre-wrap;'>\n";
+    foreach my $line (@data) {
+        print _html($line);
+        print "\n" unless $line =~ /\n$/;
+    }
+    print "</pre>\n";
     return;
 }
 
