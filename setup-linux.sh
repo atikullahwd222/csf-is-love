@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_ARCHIVE_URL="${REPO_ARCHIVE_URL:-https://github.com/atikullahwd222/csf-is-love/archive/refs/heads/main.tar.gz}"
 TMP_DIR=""
 timestamp="$(date +%Y%m%d%H%M%S)"
+BIT_LINUX_SETUP_VERSION="1.2.9"
 
 cleanup() {
     if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
@@ -21,6 +22,8 @@ if [ -d /usr/local/cpanel ]; then
     echo "ERROR: cPanel/WHM detected. Use setup.sh for WHM servers instead."
     exit 1
 fi
+
+echo "BIT Linux CSF setup $BIT_LINUX_SETUP_VERSION"
 
 install_packages() {
     echo "Installing required packages..."
@@ -76,12 +79,30 @@ csf_install_looks_valid() {
     [ -x /usr/sbin/csf ] || return 1
     [ -x /usr/sbin/lfd ] || return 1
     [ -f /etc/csf/csf.conf ] || return 1
-    ! head -n 1 /usr/sbin/csf 2>/dev/null | grep -q "/usr/local/cpanel/3rdparty/bin/perl" || return 1
-    ! head -n 1 /usr/sbin/lfd 2>/dev/null | grep -q "/usr/local/cpanel/3rdparty/bin/perl" || return 1
+    if head -n 1 /usr/sbin/csf 2>/dev/null | grep -q "/usr/local/cpanel/3rdparty/bin/perl"; then
+        return 1
+    fi
+    if head -n 1 /usr/sbin/lfd 2>/dev/null | grep -q "/usr/local/cpanel/3rdparty/bin/perl"; then
+        return 1
+    fi
     return 0
 }
 
+repair_existing_csf() {
+    local repaired=0
+    for file in /usr/sbin/csf /usr/sbin/lfd /usr/local/csf/bin/csftest.pl /usr/local/csf/bin/pt_deleted_action.pl /usr/local/csf/bin/regex.custom.pm /usr/local/csf/bin/auto.pl; do
+        if [ -f "$file" ] && head -n 1 "$file" 2>/dev/null | grep -q "/usr/local/cpanel/3rdparty/bin/perl"; then
+            echo "Repairing Perl interpreter in $file"
+            fix_perl_shebang "$file"
+            chmod 0700 "$file" || true
+            repaired=1
+        fi
+    done
+    return "$repaired"
+}
+
 install_csf() {
+    repair_existing_csf || true
     if csf_install_looks_valid; then
         echo "CSF already installed. Keeping current install and applying hardening."
         return
