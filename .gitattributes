@@ -1,4 +1,6 @@
+.gitattributes text eol=lf
 *.sh text eol=lf
 *.pm text eol=lf
+*.css text eol=lf
 etc/csf.conf text eol=lf
 SOURCES/pkg.* text eol=lf

@@ -2201,6 +2201,11 @@ EOD
 
         print $status;
 
+        print "<div class='bahari-shell'>\n";
+        print "<h3>BahariHost CSF Control <span class='bahari-badge'>WHM Hardened</span></h3>\n";
+        print "<p>Firewall rescue, DDoS mode, admin safe IPs, recent block review, and rollback tools are ready in this customized CSF panel.</p>\n";
+        print "</div>\n";
+
         print "<div class='normalcontainer'>\n";
 
         print "<ul class='nav nav-tabs' id='myTabs' style='font-weight:bold'>\n";
@@ -2260,7 +2265,7 @@ EOD
         print "</table>\n";
 
         my $adminip = _remote_ip();
-        print "<table class='table table-bordered table-striped'>\n";
+        print "<table class='table table-bordered table-striped bahari-rescue-table'>\n";
         print "<thead><tr><th colspan='2'>WHM Access Rescue &amp; DDoS Tools</th></tr></thead>";
         print "<tr><td><button onClick='\$(\"#blockreason\").submit();' class='btn btn-default'>Find Block Reason</button></td><td style='width:100%'><form action='$script' method='post' id='blockreason'><input type='submit' class='hide'><input type='hidden' name='action' value='blockreason'>Check IP address <input type='text' name='ip' value='' size='18'> in csf, temporary blocks, and recent lfd logs</form></td></tr>\n";
         print "<tr><td><button onClick='\$(\"#safeunblock\").submit();' class='btn btn-success'>Safe Unblock</button></td><td style='width:100%'><form action='$script' method='post' id='safeunblock'><input type='submit' class='hide'><input type='hidden' name='action' value='safeunblock'>Remove IP address <input type='text' name='ip' value='' size='18'> from permanent and temporary denies, then restart csf without flushing all firewall rules</form></td></tr>\n";

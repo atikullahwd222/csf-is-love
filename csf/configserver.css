@@ -1,24 +1,76 @@
 .icon-configserver {
-	color: #990000;
+	color: #0f766e;
+}
+.bahari-shell {
+	background: #ffffff;
+	border: 1px solid #d9e2ec;
+	border-left: 5px solid #0f766e;
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+	margin: 0 0 18px 0;
+	padding: 16px 18px;
+}
+.bahari-shell h3 {
+	color: #0f172a;
+	font-size: 20px;
+	font-weight: 700;
+	margin: 0 0 6px 0;
+}
+.bahari-shell p {
+	color: #475569;
+	margin: 0;
+}
+.bahari-shell a {
+	color: #0f766e;
+	font-weight: 700;
+}
+.bahari-badge {
+	background: #ecfdf5;
+	border: 1px solid #99f6e4;
+	border-radius: 999px;
+	color: #0f766e;
+	display: inline-block;
+	font-size: 12px;
+	font-weight: 700;
+	margin-left: 8px;
+	padding: 3px 9px;
+	vertical-align: middle;
 }
 .btn-default:active,
 .btn-default:visited,
 .btn-default:focus,
 .btn-default {
 	background:#FFFFFF;
-	border-radius:3px;
-	border:1px solid #A6C150;
-	color:#990000 !important;
+	border-radius:4px;
+	border:1px solid #94a3b8;
+	color:#0f172a !important;
+	font-weight: 600;
 }
 .btn-default:hover {
-	border:1px solid #A6C150;
-	background: #F5F5F5;
+	border:1px solid #0f766e;
+	background: #f0fdfa;
+	color:#0f766e !important;
+}
+.btn-primary {
+	background: #0f766e;
+	border-color: #0f766e;
+	font-weight: 700;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+	background: #115e59;
+	border-color: #115e59;
+}
+.btn-success,
+.btn-warning,
+.btn-danger {
+	font-weight: 700;
 }
 .btn-csf-config:focus,
 .btn-csf-config:hover,
 .btn-csf-config:active,
 .btn-csf-config.active {
-	background-color:#BDECB6 !important;
+	background-color:#ccfbf1 !important;
 	-webkit-transition: all 0.30s ease-in-out;
 	-moz-transition: all 0.30s ease-in-out;
 	-ms-transition: all 0.30s ease-in-out;
@@ -31,17 +83,17 @@ input[type=text], select {
 	-ms-transition: all 0.30s ease-in-out;
 	-o-transition: all 0.30s ease-in-out;
 	transition: all 0.30s ease-in-out;
-	border-radius:3px;
+	border-radius:4px;
 	outline: none;
-	padding: 3px 0px 3px 3px;
+	padding: 5px 7px;
 	margin: 5px 1px 3px 0px;
-	border: 1px solid #990000;
+	border: 1px solid #94a3b8;
 }
 input[type=text]:focus, select:focus {
-	box-shadow: 0 0 5px #CC0000;
-	padding: 3px 0px 3px 3px;
+	box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+	padding: 5px 7px;
 	margin: 5px 1px 3px 0px;
-	border: 1px solid #990000;
+	border: 1px solid #0f766e;
 }
 .td-btn {
 	width: 200px;
@@ -49,18 +101,63 @@ input[type=text]:focus, select:focus {
 .td-text {
 }
 th {
-	background: #F4F4EA;
+	background: #f8fafc;
+	color: #0f172a;
+	font-weight: 700;
 }
 .table tbody>tr>td {
 	vertical-align: middle;
 }
+.table {
+	background: #ffffff;
+	border-color: #d9e2ec;
+	border-radius: 6px;
+	box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+	overflow: hidden;
+}
+.table>thead>tr>th {
+	border-bottom: 1px solid #d9e2ec;
+	padding: 11px 12px;
+}
+.table>tbody>tr>td {
+	border-top: 1px solid #edf2f7;
+	padding: 10px 12px;
+}
+.table-striped>tbody>tr:nth-of-type(odd) {
+	background-color: #fbfdff;
+}
+.table tbody tr:hover {
+	background-color: #f8fafc;
+}
+.bahari-rescue-table {
+	border-left: 5px solid #0f766e;
+}
+.bahari-rescue-table thead th {
+	background: #ecfdf5;
+	color: #064e3b;
+}
+.nav-tabs {
+	border-bottom: 1px solid #cbd5e1;
+	margin-top: 4px;
+}
+.nav-tabs>li>a {
+	border-radius: 6px 6px 0 0;
+	color: #334155;
+	font-weight: 700;
+}
+.nav-tabs>li.active>a,
+.nav-tabs>li.active>a:hover,
+.nav-tabs>li.active>a:focus {
+	border-top: 3px solid #0f766e;
+	color: #0f766e;
+}
 .panel-default > .panel-heading-cxs {
 	font-weight: bold;
-	background: #F4F4EA;
+	background: #f8fafc;
 }
 .panel-default > .panel-footer-cxs {
 	font-weight: bold;
-	background: #F4F4EA;
+	background: #f8fafc;
 }
 #loader {
 	position: absolute;
@@ -68,10 +165,10 @@ th {
 	top: 50%;
 	z-index: 1;
 	margin: -75px 0 0 -75px;
-	border: 16px solid #F4F4EA;
+	border: 16px solid #e2e8f0;
 	border-radius: 50%;
-	border-top: 16px solid #990000;
-	border-bottom: 16px solid #990000;
+	border-top: 16px solid #0f766e;
+	border-bottom: 16px solid #ef4444;
 	width: 120px;
 	height: 120px;
 	-webkit-animation: spin 2s linear infinite;
@@ -139,10 +236,12 @@ th {
 }
 .comment {
 	border-radius:5px;
-	border: 1px solid #DDDDDD;
+	border: 1px solid #cbd5e1;
 	padding: 10px;
 	font-family: Courier New, Courier;
 	font-size: 14px;
+	background: #0f172a;
+	color: #e2e8f0;
 }
 .value-default {
 	background:#F5F5F5;
@@ -166,7 +265,7 @@ th {
 }
 .section {
 	border-radius:5px;
-	border: 2px solid #990000;
+	border: 2px solid #0f766e;
 	padding: 10px;
 	font-size:16px;
 	font-weight:bold;
