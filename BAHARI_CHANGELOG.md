@@ -1,5 +1,9 @@
 # BahariHost CSF Changelog
 
+## 1.2.6 - 2026-06-17
+
+- Added `setup-linux.sh` for plain Linux servers without cPanel/WHM.
+
 ## 1.2.5 - 2026-06-17
 
 - Added setup preflight replacement for existing non-BIT/non-BahariHost CSF installs before applying the hardened build.
