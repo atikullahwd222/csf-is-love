@@ -146,8 +146,10 @@ unless ($is_raw_output) {
     open( $SCRIPTOUT, '>', \$templatehtml );
     $old_fh = select $SCRIPTOUT;    ## no critic (InputOutput::ProhibitOneArgSelect) - Temporarily redirect default output to capture template content
 
+    my $cssv = $myv;
+    $cssv =~ s/[^\w.-]/_/g;
     print <<EOF;
-	<link href='$images/configserver.css' rel='stylesheet' type='text/css'>
+	<link href='$images/configserver.css?v=$cssv-bahari4' rel='stylesheet' type='text/css'>
 <style>
 .toplink {
 top: 140px;
@@ -158,6 +160,14 @@ display:none;
 .normalcontainer {
 display:block;
 }
+.bahari-shell{background:#fff;border:1px solid #d9e2ec;border-left:5px solid #0f766e;border-radius:6px;box-shadow:0 2px 8px rgba(15,23,42,.06);margin:0 0 18px 0;padding:16px 18px}
+.bahari-shell h3{color:#0f172a;font-size:20px;font-weight:700;margin:0 0 6px 0}
+.bahari-shell p{color:#475569;margin:0}.bahari-badge{background:#ecfdf5;border:1px solid #99f6e4;border-radius:999px;color:#0f766e;display:inline-block;font-size:12px;font-weight:700;margin-left:8px;padding:3px 9px;vertical-align:middle}
+.bahari-dashboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:0 0 14px 0}
+.bahari-card{background:#fff;border:1px solid #d9e2ec;border-left:4px solid #64748b;border-radius:6px;box-shadow:0 1px 5px rgba(15,23,42,.05);min-height:92px;padding:13px 14px}
+.bahari-card span{color:#64748b;display:block;font-size:12px;font-weight:700;text-transform:uppercase}.bahari-card strong{color:#0f172a;display:block;font-size:22px;font-weight:800;line-height:1.25;margin:6px 0;overflow-wrap:anywhere}.bahari-card small{color:#64748b;display:block}
+.bahari-card.is-ok{border-left-color:#10b981}.bahari-card.is-warn{border-left-color:#f59e0b}.bahari-card.is-danger{border-left-color:#ef4444}
+.bahari-actions{background:#f8fafc;border:1px solid #d9e2ec;border-radius:6px;display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px 0;padding:10px}.bahari-actions form{margin:0}
 EOF
     if ( $config{STYLE_MOBILE} or $reseller ) {
         print <<EOF;

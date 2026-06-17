@@ -2203,7 +2203,7 @@ EOD
 
         print "<div class='bahari-shell'>\n";
         print "<h3>BahariHost CSF Control <span class='bahari-badge'>WHM Hardened</span></h3>\n";
-        print "<p>Firewall rescue, DDoS mode, admin safe IPs, recent block review, and rollback tools are ready in this customized CSF panel.</p>\n";
+        print "<p>A focused operations dashboard for firewall health, rescue controls, DDoS response, safe admin access, and rollback.</p>\n";
         print "</div>\n";
 
         my $adminip = _remote_ip();
