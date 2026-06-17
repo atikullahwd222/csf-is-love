@@ -119,6 +119,9 @@
 .config-detail {
 	margin-bottom: 8px;
 }
+.attack-log-line {
+	display: block;
+}
 .btn-default:active,
 .btn-default:visited,
 .btn-default:focus,

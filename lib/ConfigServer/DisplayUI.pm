@@ -1493,10 +1493,11 @@ function CSFfilterConfig(){
 		});
 		page.find('.config-detail').each(function(){
 			var detail = $(this);
-			var ok = !q.length || detail.text().toLowerCase().indexOf(q) >= 0 || pageHasMatch;
+			var ok = !q.length || detail.text().toLowerCase().indexOf(q) >= 0;
 			detail.toggle(detailsOpen && ok);
 			if (ok && q.length) { pageHasMatch = true; }
 		});
+		page.children('.section').toggle(!q.length || pageHasMatch);
 		if (q.length) { page.toggle(pageHasMatch); }
 		else { page.show(); }
 	});
@@ -3153,25 +3154,54 @@ sub _attack_dashboard {
     }
     close($IN);
 
-    print "<table class='table table-bordered table-striped'>\n";
+    print "<div class='csf-config-toolbar'>\n";
+    print "<input type='text' id='CSFattackSearch' placeholder='Search IP, reason, or log text...' autocomplete='off'>\n";
+    print "<button type='button' class='btn btn-default' id='CSFattackClear'>Clear</button>\n";
+    print "<span id='CSFattackResult' class='csf-config-result'></span>\n";
+    print "</div>\n";
+
+    print "<table class='table table-bordered table-striped csf-attack-filter'>\n";
     print "<thead><tr><th colspan='4'>Top Blocked IPs</th></tr><tr><th>IP</th><th>Hits</th><th colspan='2'>Action</th></tr></thead>\n";
     foreach my $ip ( ( sort { $ip_count{$b} <=> $ip_count{$a} } keys %ip_count )[ 0 .. 9 ] ) {
         next unless defined $ip;
-        print "<tr><td><code>$ip</code></td><td>$ip_count{$ip}</td><td><a class='btn btn-success btn-xs' href='$script?action=safeunblock&ip=$ip'>Unblock</a></td><td><a class='btn btn-default btn-xs' href='$script?action=blockreason&ip=$ip'>Reason</a></td></tr>\n";
+        print "<tr class='attack-row'><td><code>$ip</code></td><td>$ip_count{$ip}</td><td><a class='btn btn-success btn-xs' href='$script?action=safeunblock&ip=$ip'>Unblock</a></td><td><a class='btn btn-default btn-xs' href='$script?action=blockreason&ip=$ip'>Reason</a></td></tr>\n";
     }
     print "</table>\n";
 
-    print "<table class='table table-bordered table-striped'>\n";
+    print "<table class='table table-bordered table-striped csf-attack-filter'>\n";
     print "<thead><tr><th colspan='2'>Top Reasons</th></tr><tr><th>Reason</th><th>Hits</th></tr></thead>\n";
     foreach my $reason ( ( sort { $reason_count{$b} <=> $reason_count{$a} } keys %reason_count )[ 0 .. 9 ] ) {
         next unless defined $reason;
-        print "<tr><td>$reason</td><td>$reason_count{$reason}</td></tr>\n";
+        print "<tr class='attack-row'><td>$reason</td><td>$reason_count{$reason}</td></tr>\n";
     }
     print "</table>\n";
 
     print "<h4>Recent lfd Events</h4><pre class='comment' style='white-space: pre-wrap; height: 360px; overflow:auto;'>\n";
-    foreach my $line (@recent) { print _html($line) }
-    print "</pre></div>\n";
+    foreach my $line (@recent) { print "<span class='attack-log-line'>" . _html($line) . "</span>" }
+    print "</pre>\n";
+    print <<'EOD';
+<script type="text/javascript">
+function CSFfilterAttack(){
+	var q = $('#CSFattackSearch').val().toLowerCase();
+	var rows = 0;
+	$('.attack-row').each(function(){
+		var ok = !q.length || $(this).text().toLowerCase().indexOf(q) >= 0;
+		$(this).toggle(ok);
+		if (ok) { rows++; }
+	});
+	$('.attack-log-line').each(function(){
+		var ok = !q.length || $(this).text().toLowerCase().indexOf(q) >= 0;
+		$(this).toggle(ok);
+		if (ok) { rows++; }
+	});
+	$('#CSFattackResult').text(q.length ? (rows + ' matches') : '');
+}
+$('#CSFattackSearch').on('keyup change', CSFfilterAttack);
+$('#CSFattackClear').on('click', function(){ $('#CSFattackSearch').val(''); CSFfilterAttack(); });
+CSFfilterAttack();
+</script>
+EOD
+    print "</div>\n";
     return;
 }
 
