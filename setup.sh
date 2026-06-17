@@ -42,7 +42,8 @@ prepare_sources() {
     if [ -f "$SOURCE_DIR/lib/ConfigServer/DisplayUI.pm" ] \
         && [ -f "$SOURCE_DIR/cpanel/csf.cgi" ] \
         && [ -f "$SOURCE_DIR/cpanel/csf.tmpl" ] \
-        && [ -f "$SOURCE_DIR/csf/configserver.css" ]; then
+        && [ -f "$SOURCE_DIR/csf/configserver.css" ] \
+        && [ -f "$SOURCE_DIR/BAHARI_VERSION" ]; then
         return
     fi
 
@@ -52,6 +53,7 @@ prepare_sources() {
     fetch_file "cpanel/csf.cgi" "$TMP_DIR/cpanel/csf.cgi"
     fetch_file "cpanel/csf.tmpl" "$TMP_DIR/cpanel/csf.tmpl"
     fetch_file "csf/configserver.css" "$TMP_DIR/csf/configserver.css"
+    fetch_file "BAHARI_VERSION" "$TMP_DIR/BAHARI_VERSION"
     SOURCE_DIR="$TMP_DIR"
 }
 
@@ -110,6 +112,7 @@ install -m 0644 "$SOURCE_DIR/lib/ConfigServer/DisplayUI.pm" /usr/local/csf/lib/C
 install -m 0700 "$SOURCE_DIR/cpanel/csf.cgi" /usr/local/cpanel/whostmgr/docroot/cgi/configserver/csf.cgi
 install -m 0644 "$SOURCE_DIR/cpanel/csf.tmpl" /usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl
 install -m 0644 "$SOURCE_DIR/csf/configserver.css" /usr/local/cpanel/whostmgr/docroot/cgi/configserver/csf/configserver.css
+install -m 0644 "$SOURCE_DIR/BAHARI_VERSION" /usr/local/csf/bahari_version.txt
 
 echo "Applying CSF settings..."
 set_csf_option TESTING "0"

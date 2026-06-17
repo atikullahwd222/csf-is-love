@@ -1068,6 +1068,14 @@ EOF
         _set_ddos_mode("normal");
         _printreturn();
     }
+    elsif ( $FORM{action} eq "bahariupdate" ) {
+        _bahari_update_panel();
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "bahariupdateinstall" ) {
+        _bahari_update_install();
+        _printreturn();
+    }
     elsif ( $FORM{action} eq "adminsafeadd" ) {
         _admin_safe_ip( "add", $FORM{ip}, $FORM{comment} );
         _printreturn();
@@ -2257,6 +2265,7 @@ EOD
         my $lfd_class     = $config{LF_DAEMON} ? "is-ok" : "is-warn";
         my $attack_state  = ( $config{SYNFLOOD} or $config{CT_LIMIT} or length $config{CONNLIMIT} ) ? "Attack Mode" : "Normal";
         my $attack_class  = $attack_state eq "Attack Mode" ? "is-danger" : "is-ok";
+        my $bahari_version = _bahari_current_version();
 
         print "<div class='bahari-dashboard'>\n";
         print "<div class='bahari-card $testing_class'><span>Firewall Mode</span><strong>$testing_state</strong><small>TESTING = $config{TESTING}</small></div>\n";
@@ -2265,9 +2274,11 @@ EOD
         print "<div class='bahari-card'><span>Admin IP</span><strong>$adminip</strong><small>Use Safe Admin IP to trust it</small></div>\n";
         print "<div class='bahari-card'><span>Blocks</span><strong>$permban_count / $tempban_count</strong><small>Permanent / temporary</small></div>\n";
         print "<div class='bahari-card'><span>Allowed IPs</span><strong>$permallow_count</strong><small>Permanent allows</small></div>\n";
+        print "<div class='bahari-card'><span>BahariHost Build</span><strong>$bahari_version</strong><small>Custom layer version</small></div>\n";
         print "</div>\n";
 
         print "<div class='bahari-actions'>\n";
+        print "<form action='$script' method='post'><button name='action' value='bahariupdate' type='submit' class='btn btn-default'>Check for Update</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='attackdashboard' type='submit' class='btn btn-default'>Recent Attack Dashboard</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='recommendedhardening' type='submit' class='btn btn-primary'>Apply Recommended Hardening</button></form>\n";
         print "<form action='$script' method='post'><button name='action' value='ddosattack' type='submit' class='btn btn-danger'>Enable Attack Mode</button></form>\n";
@@ -3005,6 +3016,72 @@ sub _capturecmd {
     my @output = <$childout>;
     waitpid( $pid, 0 );
     return @output;
+}
+
+sub _bahari_current_version {
+    my $version = "unknown";
+    if ( -e "/usr/local/csf/bahari_version.txt" ) {
+        my @data = slurpee( "/usr/local/csf/bahari_version.txt", 'warn' => 0 );
+        if (@data) {
+            chomp $data[0];
+            $version = $data[0] || "unknown";
+        }
+    }
+    return _html($version);
+}
+
+sub _bahari_latest_version {
+    my $url = "https://raw.githubusercontent.com/atikullahwd222/csf-is-love/refs/heads/main/BAHARI_VERSION?ts=" . time;
+    my ( $status, $content ) = $urlget->urlget( $url, undef, 1 );
+    if ($status) {
+        return ( "unknown", $content || "Unable to fetch latest version" );
+    }
+    $content =~ s/^\s+|\s+$//g;
+    return ( $content || "unknown", "" );
+}
+
+sub _bahari_update_panel {
+    my $current = _bahari_current_version();
+    my ( $latest, $error ) = _bahari_latest_version();
+    my $latest_html = _html($latest);
+
+    print "<div class='bahari-shell'>\n";
+    print "<h3>BahariHost CSF Update</h3>\n";
+    print "<p>Current installed build: <strong>$current</strong> &nbsp; Latest GitHub build: <strong>$latest_html</strong></p>\n";
+    print "</div>\n";
+
+    if ( length $error ) {
+        print "<div class='bs-callout bs-callout-warning'><h4>Update check failed</h4><p>" . _html($error) . "</p></div>\n";
+        return;
+    }
+
+    if ( $current eq $latest_html ) {
+        print "<div class='bs-callout bs-callout-success'><h4>Already up to date</h4><p>This server is running the latest BahariHost CSF build.</p></div>\n";
+    }
+    else {
+        print "<div class='bs-callout bs-callout-info'><h4>Update available</h4><p>Install the latest files from GitHub on this server.</p></div>\n";
+        print "<form action='$script' method='post'><input type='hidden' name='action' value='bahariupdateinstall'><input type='submit' class='btn btn-primary' value='Install Update Now'></form>\n";
+    }
+    return;
+}
+
+sub _bahari_update_install {
+    my $setup_url = "https://raw.githubusercontent.com/atikullahwd222/csf-is-love/refs/heads/main/setup.sh?ts=" . time;
+    my $setup_file = "/tmp/bahari-csf-setup-$$.sh";
+
+    print "<div><p>Installing latest BahariHost CSF build from GitHub...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+    my ( $status, $message ) = $urlget->urlget( $setup_url, $setup_file, 1 );
+    if ($status) {
+        print "Download failed: $message\n";
+    }
+    else {
+        chmod 0700, $setup_file;
+        _printcmd( "/bin/bash", $setup_file );
+        unlink $setup_file;
+        print "\nUpdate completed. Refresh WHM with Ctrl+F5 if the old UI is still visible.\n";
+    }
+    print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+    return;
 }
 
 sub _append_unique_line {
