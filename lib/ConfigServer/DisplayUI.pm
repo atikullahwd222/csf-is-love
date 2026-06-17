@@ -1068,6 +1068,30 @@ EOF
         _set_ddos_mode("normal");
         _printreturn();
     }
+    elsif ( $FORM{action} eq "adminsafeadd" ) {
+        _admin_safe_ip( "add", $FORM{ip}, $FORM{comment} );
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "adminsafedel" ) {
+        _admin_safe_ip( "remove", $FORM{ip}, $FORM{comment} );
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "attackdashboard" ) {
+        _attack_dashboard();
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "recommendedhardening" ) {
+        _recommended_hardening();
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "rollbackpanel" ) {
+        _rollback_panel();
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "rollbackrestore" ) {
+        _rollback_restore( $FORM{backup} );
+        _printreturn();
+    }
     elsif ( $FORM{action} eq "callow" ) {
         print "<div><p>Cluster Allow $FORM{ip}...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
         _printcmd( "/usr/sbin/csf", "-ca", $FORM{ip}, $FORM{comment} );
@@ -2244,6 +2268,11 @@ EOD
         print "<tr><td><form action='$script' method='post'><button name='action' value='emergencyrestore' type='submit' class='btn btn-warning'>Emergency Access Restore</button></form></td><td style='width:100%'>Allow the current WHM IP, run cPanel firewall port repair, and restart csf/lfd without full iptables flush</td></tr>\n";
         print "<tr><td><form action='$script' method='post'><button name='action' value='ddosattack' type='submit' class='btn btn-danger'>Enable Attack Mode</button></form></td><td style='width:100%'>Temporarily tighten SYN flood, port flood, and connection limits for active attacks</td></tr>\n";
         print "<tr><td><form action='$script' method='post'><button name='action' value='ddosnormal' type='submit' class='btn btn-default'>Restore Normal Mode</button></form></td><td style='width:100%'>Restore the standard CSF values used by this package and restart csf/lfd</td></tr>\n";
+        print "<tr><td><button onClick='\$(\"#adminsafeadd\").submit();' class='btn btn-success'>Add Safe Admin IP</button></td><td style='width:100%'><form action='$script' method='post' id='adminsafeadd'><input type='submit' class='hide'><input type='hidden' name='action' value='adminsafeadd'>Add IP address <a href='javascript:fillfield(\"safeadminip\",\"$adminip\")'><span class='glyphicon glyphicon-cog icon-configserver' style='font-size:1.3em;' data-tooltip='tooltip' title='$adminip'></span></a> <input type='text' name='ip' id='safeadminip' value='' size='18'> to csf.allow and csf.ignore<br>Comment: <input type='text' name='comment' value='WHM safe admin IP' size='30'></form></td></tr>\n";
+        print "<tr><td><button onClick='\$(\"#adminsafedel\").submit();' class='btn btn-default'>Remove Safe Admin IP</button></td><td style='width:100%'><form action='$script' method='post' id='adminsafedel'><input type='submit' class='hide'><input type='hidden' name='action' value='adminsafedel'>Remove IP address <input type='text' name='ip' value='' size='18'> from csf.allow and csf.ignore</form></td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='attackdashboard' type='submit' class='btn btn-default'>Recent Attack Dashboard</button></form></td><td style='width:100%'>Summarize recent lfd blocks and provide quick unblock/allow actions</td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='recommendedhardening' type='submit' class='btn btn-primary'>Apply Recommended Hardening</button></form></td><td style='width:100%'>Apply a safe cPanel baseline for login failures, syslog protection, block limits, and flood controls</td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='rollbackpanel' type='submit' class='btn btn-default'>Emergency Rollback</button></form></td><td style='width:100%'>Restore a recent csf.conf backup and restart csf/lfd</td></tr>\n";
         print "</table>\n";
 
         print "<table class='table table-bordered table-striped'>\n";
@@ -2930,6 +2959,31 @@ sub _append_unique_line {
     return;
 }
 
+sub _remove_ip_line {
+    my ( $file, $ip ) = @_;
+    my @kept;
+    my $removed = 0;
+
+    return unless -e $file;
+
+    sysopen( my $IN, $file, Fcntl::O_RDWR ) or die "Unable to open file: $!";
+    flock( $IN, Fcntl::LOCK_EX );
+    while ( my $line = <$IN> ) {
+        if ( $line =~ /^\s*\Q$ip\E(?:\s|\#|$)/ ) {
+            $removed = 1;
+            next;
+        }
+        push @kept, $line;
+    }
+    seek( $IN, 0, 0 );
+    truncate( $IN, 0 );
+    print $IN @kept;
+    close($IN);
+
+    print $removed ? "Removed $ip from $file\n" : "$ip was not found in $file\n";
+    return;
+}
+
 sub _print_lfd_restart {
     if ( $config{THIS_UI} ) {
         print "Signal lfd to restart\n";
@@ -2940,6 +2994,30 @@ sub _print_lfd_restart {
         print "Restarting lfd\n";
         ConfigServer::Service::restartlfd();
     }
+    return;
+}
+
+sub _admin_safe_ip {
+    my ( $mode, $ip, $comment ) = @_;
+    $comment ||= "WHM safe admin IP";
+
+    print "<div><p>" . ( $mode eq "add" ? "Adding" : "Removing" ) . " safe admin IP $ip...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+    if ( !length $ip or !checkip( \$ip ) ) {
+        print "Invalid IP/CIDR: $ip\n";
+    }
+    elsif ( $mode eq "add" ) {
+        _printcmd( "/usr/sbin/csf", "-dr",  $ip );
+        _printcmd( "/usr/sbin/csf", "-trd", $ip );
+        _printcmd( "/usr/sbin/csf", "-a",   $ip, $comment );
+        _append_unique_line( "/etc/csf/csf.ignore", $ip, $comment );
+        _print_lfd_restart();
+    }
+    else {
+        _printcmd( "/usr/sbin/csf", "-ar", $ip );
+        _remove_ip_line( "/etc/csf/csf.ignore", $ip );
+        _print_lfd_restart();
+    }
+    print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
     return;
 }
 
@@ -2969,6 +3047,60 @@ sub _blockreason {
     print "<a class='btn btn-success' href='$script?action=safeunblock&ip=$ip'>Safe Unblock $ip</a>\n";
     print "<a class='btn btn-default' href='$script?action=qallow&ip=$ip&comment=WHM%20allow%20after%20block%20lookup'>Allow $ip</a>\n";
     print "</div>\n";
+    return;
+}
+
+sub _attack_dashboard {
+    my $file = "/var/log/lfd.log";
+    my ( %ip_count, %reason_count, @recent );
+
+    print "<div><p>Recent lfd attack dashboard...</p>\n";
+    if ( !-e $file ) {
+        print "<div class='bs-callout bs-callout-warning'>lfd log was not found at $file</div>\n";
+        return;
+    }
+
+    sysopen( my $IN, $file, Fcntl::O_RDONLY ) or die "Unable to open file: $!";
+    flock( $IN, Fcntl::LOCK_SH );
+    while ( my $line = <$IN> ) {
+        next unless $line =~ /\b(?:blocked|blocked permanently|temporary block|Temporary block|DENYIN|DENYOUT|Failed|Invalid)\b/i;
+        if ( $line =~ /($ipv4reg|$ipv6reg)/ ) {
+            my $ip = $1;
+            $ip_count{$ip}++;
+            my $reason = "Other";
+            if    ( $line =~ /sshd/i )      { $reason = "SSH" }
+            elsif ( $line =~ /cpanel/i )    { $reason = "cPanel/WHM" }
+            elsif ( $line =~ /imap/i )      { $reason = "IMAP" }
+            elsif ( $line =~ /pop3/i )      { $reason = "POP3" }
+            elsif ( $line =~ /smtp/i )      { $reason = "SMTP AUTH" }
+            elsif ( $line =~ /port flood/i ){ $reason = "Port Flood" }
+            elsif ( $line =~ /conn/i )      { $reason = "Connection Tracking" }
+            $reason_count{$reason}++;
+            push @recent, $line;
+            shift @recent while @recent > 20;
+        }
+    }
+    close($IN);
+
+    print "<table class='table table-bordered table-striped'>\n";
+    print "<thead><tr><th colspan='4'>Top Blocked IPs</th></tr><tr><th>IP</th><th>Hits</th><th colspan='2'>Action</th></tr></thead>\n";
+    foreach my $ip ( ( sort { $ip_count{$b} <=> $ip_count{$a} } keys %ip_count )[ 0 .. 9 ] ) {
+        next unless defined $ip;
+        print "<tr><td><code>$ip</code></td><td>$ip_count{$ip}</td><td><a class='btn btn-success btn-xs' href='$script?action=safeunblock&ip=$ip'>Unblock</a></td><td><a class='btn btn-default btn-xs' href='$script?action=blockreason&ip=$ip'>Reason</a></td></tr>\n";
+    }
+    print "</table>\n";
+
+    print "<table class='table table-bordered table-striped'>\n";
+    print "<thead><tr><th colspan='2'>Top Reasons</th></tr><tr><th>Reason</th><th>Hits</th></tr></thead>\n";
+    foreach my $reason ( ( sort { $reason_count{$b} <=> $reason_count{$a} } keys %reason_count )[ 0 .. 9 ] ) {
+        next unless defined $reason;
+        print "<tr><td>$reason</td><td>$reason_count{$reason}</td></tr>\n";
+    }
+    print "</table>\n";
+
+    print "<h4>Recent lfd Events</h4><pre class='comment' style='white-space: pre-wrap; height: 360px; overflow:auto;'>\n";
+    foreach my $line (@recent) { print _html($line) }
+    print "</pre></div>\n";
     return;
 }
 
@@ -3003,10 +3135,20 @@ sub _print_file_matches {
     return;
 }
 
-sub _set_csf_options {
-    my %changes = @_;
+sub _backup_csf_conf {
+    my $label = shift || "whm_backup";
     mkdir "/var/lib/csf/backup" unless -d "/var/lib/csf/backup";
-    File::Copy::copy( "/etc/csf/csf.conf", "/var/lib/csf/backup/" . time . "_whm_ddos_mode" );
+    my $safe_label = $label;
+    $safe_label =~ s/[^A-Za-z0-9_.-]/_/g;
+    my $backup = "/var/lib/csf/backup/" . time . "_$safe_label";
+    File::Copy::copy( "/etc/csf/csf.conf", $backup );
+    print "Backup created: $backup\n";
+    return $backup;
+}
+
+sub _set_csf_options {
+    my ( $label, %changes ) = @_;
+    _backup_csf_conf($label);
 
     sysopen( my $IN, "/etc/csf/csf.conf", Fcntl::O_RDWR | Fcntl::O_CREAT ) or die "Unable to open file: $!";
     flock( $IN, Fcntl::LOCK_SH );
@@ -3036,6 +3178,89 @@ sub _set_csf_options {
 
     ConfigServer::Config::resetconfig();
     return;
+}
+
+sub _recommended_hardening {
+    my %changes = (
+        TESTING             => "0",
+        LF_DAEMON           => "1",
+        RESTRICT_SYSLOG     => "3",
+        DROP_ONLYRES        => "1",
+        DROP_NOLOG          => "23,67,68,111,113,135:139,445,500,513,520,5678,17500",
+        PORTFLOOD           => "22;tcp;5;300,80;tcp;250;5,443;tcp;250;5,2083;tcp;30;5,2087;tcp;30;5",
+        LF_SSHD             => "5",
+        LF_CPANEL           => "5",
+        LF_FTPD             => "10",
+        LF_SMTPAUTH         => "5",
+        LF_POP3D            => "10",
+        LF_IMAPD            => "10",
+        LF_PERMBLOCK        => "1",
+        LF_PERMBLOCK_COUNT  => "4",
+        LF_PERMBLOCK_ALERT  => "1",
+        DENY_IP_LIMIT       => "300",
+        DENY_TEMP_IP_LIMIT  => "200",
+        CT_LIMIT            => "0",
+        CT_INTERVAL         => "30",
+    );
+
+    print "<div><p>Applying recommended hardening...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+    _set_csf_options( "whm_recommended_hardening", %changes );
+    foreach my $key ( sort keys %changes ) {
+        print "$key = \"$changes{$key}\"\n";
+    }
+    print "\nRestarting csf and lfd\n";
+    _printcmd( "/usr/sbin/csf", "-r" );
+    _print_lfd_restart();
+    print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+    return;
+}
+
+sub _rollback_panel {
+    my @backups = _csf_backups();
+
+    print "<div><p>Emergency rollback restores a previous csf.conf backup.</p></div>\n";
+    print "<table class='table table-bordered table-striped'>\n";
+    print "<thead><tr><th>Backup</th><th>Modified</th><th>Action</th></tr></thead>\n";
+    foreach my $backup (@backups) {
+        my $mtime = scalar localtime( ( stat $backup )[9] );
+        my $name  = File::Basename::basename($backup);
+        print "<tr><td><code>$name</code></td><td>$mtime</td><td><form action='$script' method='post'><input type='hidden' name='action' value='rollbackrestore'><input type='hidden' name='backup' value='$name'><input type='submit' class='btn btn-warning btn-xs' value='Restore'></form></td></tr>\n";
+    }
+    print "</table>\n";
+    return;
+}
+
+sub _rollback_restore {
+    my $backup = shift // '';
+    $backup =~ s/[^A-Za-z0-9_.-]//g;
+    my $source = $backup =~ /^csf\.conf\.bak\./ ? "/etc/csf/$backup" : "/var/lib/csf/backup/$backup";
+
+    print "<div><p>Restoring csf.conf backup...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+    if ( !length $backup or !-f $source ) {
+        print "Invalid or missing backup: $backup\n";
+    }
+    else {
+        _backup_csf_conf("before_rollback");
+        File::Copy::copy( $source, "/etc/csf/csf.conf" ) or die "Unable to restore backup: $!";
+        print "Restored $source to /etc/csf/csf.conf\n";
+        _printcmd( "/usr/sbin/csf", "-r" );
+        _print_lfd_restart();
+    }
+    print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+    return;
+}
+
+sub _csf_backups {
+    my @files;
+    foreach my $glob ( "/var/lib/csf/backup/*", "/etc/csf/csf.conf.bak.*" ) {
+        foreach my $file ( glob($glob) ) {
+            next unless -f $file;
+            push @files, $file;
+        }
+    }
+    @files = sort { ( stat $b )[9] <=> ( stat $a )[9] } @files;
+    splice @files, 20 if @files > 20;
+    return @files;
 }
 
 sub _set_ddos_mode {
@@ -3068,7 +3293,7 @@ sub _set_ddos_mode {
     }
 
     print "<div><p>Applying " . ( $mode eq "attack" ? "Attack" : "Normal" ) . " Mode...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
-    _set_csf_options(%changes);
+    _set_csf_options( "whm_ddos_mode", %changes );
     foreach my $key ( sort keys %changes ) {
         print "$key = \"$changes{$key}\"\n";
     }
