@@ -3054,7 +3054,7 @@ sub _bahari_update_panel {
 
     print "<div class='bahari-shell'>\n";
     print "<h3>BahariHost CSF Update</h3>\n";
-    print "<p>Current installed build: <strong>$current</strong> &nbsp; Latest GitHub build: <strong>$latest_html</strong></p>\n";
+    print "<p>Current installed build: <strong>$current</strong> &nbsp; BahariHost's Server build: <strong>$latest_html</strong></p>\n";
     print "</div>\n";
 
     if ( length $error ) {
@@ -3066,7 +3066,7 @@ sub _bahari_update_panel {
         print "<div class='bs-callout bs-callout-success'><h4>Already up to date</h4><p>This server is running the latest BahariHost CSF build.</p></div>\n";
     }
     else {
-        print "<div class='bs-callout bs-callout-info'><h4>Update available</h4><p>Install the latest files from GitHub on this server.</p></div>\n";
+        print "<div class='bs-callout bs-callout-info'><h4>Update available</h4><p>Install the latest files from BahariHost's Server on this server.</p></div>\n";
         print "<form action='$script' method='post'><input type='hidden' name='action' value='bahariupdateinstall'><input type='submit' class='btn btn-primary' value='Install Update Now'></form>\n";
     }
     print "<br><form action='$script' method='post'><input type='hidden' name='action' value='baharichangelog'><input type='submit' class='btn btn-default' value='View Changelog'></form>\n";
@@ -3103,7 +3103,7 @@ sub _bahari_update_install {
     my $setup_url = "https://raw.githubusercontent.com/atikullahwd222/csf-is-love/refs/heads/main/setup.sh?ts=" . time;
     my $setup_file = "/tmp/bahari-csf-setup-$$.sh";
 
-    print "<div><p>Installing latest BahariHost CSF build from GitHub...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+    print "<div><p>Installing latest BahariHost CSF build from BahariHost's Server...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
     my ( $status, $message ) = $urlget->urlget( $setup_url, $setup_file, 1 );
     if ($status) {
         print "Download failed: $message\n";

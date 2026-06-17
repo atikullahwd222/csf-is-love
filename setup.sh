@@ -48,7 +48,7 @@ prepare_sources() {
         return
     fi
 
-    echo "Local repo files not found; fetching required files from GitHub..."
+    echo "Local repo files not found; fetching required files from BahariHost's Server..."
     TMP_DIR="$(mktemp -d)"
     fetch_file "lib/ConfigServer/DisplayUI.pm" "$TMP_DIR/lib/ConfigServer/DisplayUI.pm"
     fetch_file "cpanel/csf.cgi" "$TMP_DIR/cpanel/csf.cgi"
