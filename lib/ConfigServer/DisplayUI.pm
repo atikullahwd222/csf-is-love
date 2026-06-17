@@ -2270,13 +2270,15 @@ EOD
         my $attack_state  = ( $config{SYNFLOOD} or $config{CT_LIMIT} or length $config{CONNLIMIT} ) ? "Attack Mode" : "Normal";
         my $attack_class  = $attack_state eq "Attack Mode" ? "is-danger" : "is-ok";
         my $bahari_version = _bahari_current_version();
+        my ( $recent_attack_ips, $recent_attack_events ) = _recent_lfd_attack_counts();
 
         print "<div class='bahari-dashboard'>\n";
         print "<div class='bahari-card $testing_class'><span>Firewall Mode</span><strong>$testing_state</strong><small>TESTING = $config{TESTING}</small></div>\n";
         print "<div class='bahari-card $lfd_class'><span>lfd Protection</span><strong>$lfd_state</strong><small>Login failure daemon</small></div>\n";
         print "<div class='bahari-card $attack_class'><span>DDoS Profile</span><strong>$attack_state</strong><small>SYN/connection controls</small></div>\n";
         print "<div class='bahari-card'><span>Admin IP</span><strong>$adminip</strong><small>Use Safe Admin IP to trust it</small></div>\n";
-        print "<div class='bahari-card'><span>Blocks</span><strong>$permban_count / $tempban_count</strong><small>Permanent / temporary</small></div>\n";
+        print "<div class='bahari-card'><span>Active Blocks</span><strong>$permban_count / $tempban_count</strong><small>Permanent / temporary now</small></div>\n";
+        print "<div class='bahari-card'><span>Recent Attack IPs</span><strong>$recent_attack_ips</strong><small>$recent_attack_events lfd log events</small></div>\n";
         print "<div class='bahari-card'><span>Allowed IPs</span><strong>$permallow_count</strong><small>Permanent allows</small></div>\n";
         print "<div class='bahari-card'><span>BahariHost Build</span><strong>$bahari_version</strong><small>Custom layer version</small></div>\n";
         print "</div>\n";
@@ -3229,6 +3231,27 @@ sub _blockreason {
     print "<a class='btn btn-default' href='$script?action=qallow&ip=$ip&comment=WHM%20allow%20after%20block%20lookup'>Allow $ip</a>\n";
     print "</div>\n";
     return;
+}
+
+sub _recent_lfd_attack_counts {
+    my $file = "/var/log/lfd.log";
+    my %ips;
+    my $events = 0;
+
+    return ( 0, 0 ) unless -e $file;
+
+    sysopen( my $IN, $file, Fcntl::O_RDONLY ) or return ( 0, 0 );
+    flock( $IN, Fcntl::LOCK_SH );
+    while ( my $line = <$IN> ) {
+        next unless $line =~ /\b(?:blocked|blocked permanently|temporary block|Temporary block|DENYIN|DENYOUT|Failed|Invalid)\b/i;
+        if ( $line =~ /($ipv4reg|$ipv6reg)/ ) {
+            $ips{$1} = 1;
+            $events++;
+        }
+    }
+    close($IN);
+
+    return ( scalar keys %ips, $events );
 }
 
 sub _attack_dashboard {

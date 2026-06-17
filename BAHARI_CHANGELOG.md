@@ -1,5 +1,10 @@
 # BahariHost CSF Changelog
 
+## 1.2.1 - 2026-06-17
+
+- Clarified dashboard block counts by separating active CSF blocks from recent lfd log activity.
+- Added recent attack IP/event counts to the dashboard.
+
 ## 1.2.0 - 2026-06-17
 
 - Added WHM changelog page.
