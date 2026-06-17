@@ -108,6 +108,7 @@ install -m 0700 "$SOURCE_DIR/cpanel/csf.cgi" /usr/local/cpanel/whostmgr/docroot/
 install -m 0644 "$SOURCE_DIR/cpanel/csf.tmpl" /usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl
 
 echo "Applying CSF settings..."
+set_csf_option TESTING "0"
 set_csf_option DROP_ONLYRES "1"
 set_csf_option DROP_NOLOG "23,67,68,111,113,135:139,445,500,513,520,5678,17500"
 set_csf_option PORTFLOOD "22;tcp;5;300,80;tcp;250;5,443;tcp;250;5"
