@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CSF_URL="${CSF_URL:-https://download.configserver.com/csf.tgz}"
+REPO_ARCHIVE_URL="${REPO_ARCHIVE_URL:-https://github.com/atikullahwd222/csf-is-love/archive/refs/heads/main.tar.gz}"
 TMP_DIR=""
 timestamp="$(date +%Y%m%d%H%M%S)"
 
@@ -71,12 +71,94 @@ install_csf() {
         return
     fi
 
-    echo "Installing CSF for plain Linux..."
+    echo "Installing CSF for plain Linux from GitHub source..."
     TMP_DIR="$(mktemp -d)"
-    download_file "$CSF_URL" "$TMP_DIR/csf.tgz"
-    tar -xzf "$TMP_DIR/csf.tgz" -C "$TMP_DIR"
-    cd "$TMP_DIR/csf"
-    sh install.sh
+    download_file "$REPO_ARCHIVE_URL" "$TMP_DIR/csf-source.tgz"
+    tar -xzf "$TMP_DIR/csf-source.tgz" -C "$TMP_DIR"
+
+    local source_dir
+    source_dir="$(find "$TMP_DIR" -maxdepth 1 -type d -name 'csf-is-love-*' | head -n 1)"
+    if [ ! -d "$source_dir" ]; then
+        echo "ERROR: Unable to find extracted CSF source directory"
+        exit 1
+    fi
+
+    backup_file /etc/csf
+    backup_file /usr/local/csf
+    backup_file /usr/sbin/csf
+    backup_file /usr/sbin/lfd
+
+    install -d -m 0700 /etc/csf
+    install -d -m 0700 /var/lib/csf /var/lib/csf/backup /var/lib/csf/Geo /var/lib/csf/stats /var/lib/csf/lock /var/lib/csf/zone
+    install -d -m 0755 /usr/local/csf /usr/local/csf/bin /usr/local/csf/lib /usr/local/csf/tpl /usr/local/csf/profiles /usr/local/csf/docs /usr/local/csf/data /usr/local/csf/messenger /usr/local/csf/cron
+    install -d -m 0755 /usr/sbin /etc/cron.d /etc/logrotate.d /usr/local/man/man1
+
+    install -m 0700 "$source_dir/csf.pl" /usr/sbin/csf
+    install -m 0700 "$source_dir/lfd.pl" /usr/sbin/lfd
+
+    install -m 0700 "$source_dir/bin/csftest.pl" /usr/local/csf/bin/
+    install -m 0700 "$source_dir/bin/pt_deleted_action.pl" /usr/local/csf/bin/
+    install -m 0700 "$source_dir/bin/regex.custom.pm" /usr/local/csf/bin/
+    install -m 0700 "$source_dir/bin/remove_apf_bfd.sh" /usr/local/csf/bin/
+    install -m 0700 "$source_dir/bin/auto.pl" /usr/local/csf/bin/
+
+    cp -a "$source_dir/lib/." /usr/local/csf/lib/
+    cp -a "$source_dir/tpl/." /usr/local/csf/tpl/
+    cp -a "$source_dir/profiles/." /usr/local/csf/profiles/
+    cp -a "$source_dir/etc/messenger/." /usr/local/csf/messenger/
+
+    install -m 0644 "$source_dir/LICENSE.txt" /usr/local/csf/docs/license.txt
+    install -m 0644 "$source_dir/etc/changelog.txt" /usr/local/csf/docs/
+    install -m 0644 "$source_dir/etc/readme.txt" /usr/local/csf/docs/
+    install -m 0644 "$source_dir/etc/version.txt" /usr/local/csf/docs/
+
+    install -m 0644 "$source_dir/etc/cpanel.allow" /usr/local/csf/data/
+    install -m 0644 "$source_dir/etc/cpanel.comodo.allow" /usr/local/csf/data/
+    install -m 0644 "$source_dir/etc/cpanel.comodo.ignore" /usr/local/csf/data/
+    install -m 0644 "$source_dir/etc/cpanel.ignore" /usr/local/csf/data/
+    install -m 0644 "$source_dir/etc/csf.cloudflare" /usr/local/csf/data/
+
+    for file in csf.allow csf.blocklists csf.conf csf.deny csf.dirwatch csf.dyndns csf.fignore csf.ignore csf.logfiles csf.logignore csf.mignore csf.pignore csf.rblconf csf.redirect csf.resellers csf.rignore csf.signore csf.sips csf.smtpauth csf.suignore csf.syslogs csf.syslogusers csf.uidignore; do
+        if [ ! -e "/etc/csf/$file" ]; then
+            install -m 0644 "$source_dir/etc/$file" "/etc/csf/$file"
+        fi
+    done
+
+    install -m 0600 "$source_dir/etc/csf.conf" /usr/local/csf/profiles/reset_to_defaults.conf
+    install -m 0644 "$source_dir/csfcron.sh" /usr/local/csf/cron/csf-cron
+    install -m 0644 "$source_dir/lfdcron.sh" /usr/local/csf/cron/lfd-cron
+    install -m 0644 "$source_dir/lfd.logrotate" /etc/logrotate.d/lfd
+    install -m 0644 "$source_dir/csf.1.txt" /usr/local/man/man1/csf.1
+
+    if [ -d /usr/lib/systemd/system ]; then
+        install -m 0644 "$source_dir/csf.service" /usr/lib/systemd/system/
+        install -m 0644 "$source_dir/lfd.service" /usr/lib/systemd/system/
+        systemctl daemon-reload || true
+    elif [ -d /lib/systemd/system ]; then
+        install -m 0644 "$source_dir/csf.service" /lib/systemd/system/
+        install -m 0644 "$source_dir/lfd.service" /lib/systemd/system/
+        systemctl daemon-reload || true
+    fi
+
+    ln -sf /usr/sbin/csf /etc/csf/csf.pl
+    ln -sf /usr/sbin/lfd /etc/csf/lfd.pl
+    ln -sf /usr/local/csf/bin/csftest.pl /etc/csf/csftest.pl
+    ln -sf /usr/local/csf/bin/pt_deleted_action.pl /etc/csf/pt_deleted_action.pl
+    ln -sf /usr/local/csf/bin/remove_apf_bfd.sh /etc/csf/remove_apf_bfd.sh
+    ln -sf /usr/local/csf/bin/regex.custom.pm /etc/csf/regex.custom.pm
+    ln -sfn /usr/local/csf/tpl /etc/csf/alerts
+    ln -sf /usr/local/csf/docs/changelog.txt /etc/csf/changelog.txt
+    ln -sf /usr/local/csf/docs/license.txt /etc/csf/license.txt
+    ln -sf /usr/local/csf/docs/readme.txt /etc/csf/readme.txt
+    ln -sf /usr/local/csf/docs/version.txt /etc/csf/version.txt
+    ln -sf /usr/local/csf/data/cpanel.allow /etc/csf/cpanel.allow
+    ln -sf /usr/local/csf/data/cpanel.comodo.allow /etc/csf/cpanel.comodo.allow
+    ln -sf /usr/local/csf/data/cpanel.comodo.ignore /etc/csf/cpanel.comodo.ignore
+    ln -sf /usr/local/csf/data/cpanel.ignore /etc/csf/cpanel.ignore
+    ln -sf /usr/local/csf/data/csf.cloudflare /etc/csf/csf.cloudflare
+    ln -sfn /usr/local/csf/messenger /etc/csf/messenger
+    ln -sf /usr/local/csf/cron/csf-cron /etc/cron.d/csf-cron
+    ln -sf /usr/local/csf/cron/lfd-cron /etc/cron.d/lfd-cron
 }
 
 set_csf_option() {

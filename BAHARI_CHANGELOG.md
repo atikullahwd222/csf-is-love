@@ -1,5 +1,9 @@
 # BahariHost CSF Changelog
 
+## 1.2.7 - 2026-06-17
+
+- Changed plain Linux installer to use the GitHub repository archive instead of `download.configserver.com`.
+
 ## 1.2.6 - 2026-06-17
 
 - Added `setup-linux.sh` for plain Linux servers without cPanel/WHM.
