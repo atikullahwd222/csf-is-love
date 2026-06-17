@@ -14,6 +14,16 @@ sed -i '/^AUTO_UPDATES\s*=/d' /etc/csf/csf.conf ||:
 rm -f /etc/cron.d/csf_update ||:
 rm -f /etc/cron.daily/csget ||:
 
+# Apply local hardened defaults on fresh installs and upgrades
+sed -i 's/^DROP_ONLYRES[[:space:]]*=.*/DROP_ONLYRES = "1"/' /etc/csf/csf.conf ||:
+sed -i 's/^DROP_NOLOG[[:space:]]*=.*/DROP_NOLOG = "23,67,68,111,113,135:139,445,500,513,520,5678,17500"/' /etc/csf/csf.conf ||:
+sed -i 's/^PORTFLOOD[[:space:]]*=.*/PORTFLOOD = "22;tcp;5;300,80;tcp;250;5,443;tcp;250;5"/' /etc/csf/csf.conf ||:
+sed -i 's/^RESTRICT_SYSLOG[[:space:]]*=.*/RESTRICT_SYSLOG = "3"/' /etc/csf/csf.conf ||:
+
+# Quiet kernel console logging
+echo "kernel.printk = 3 4 1 3" > /etc/sysctl.d/99-quiet-console.conf ||:
+sysctl --system ||:
+
 # Remove symlinks to webmin/uninstall in /etc/csf
 unlink /etc/csf/uninstall.sh ||:
 unlink /etc/csf/webmin ||:

@@ -1008,6 +1008,66 @@ EOF
         if ($unallow) { print "<div><a class='btn btn-success' href='$script?action=killallow&ip=$FORM{ip}'>Remove $FORM{ip} allow</a></div>\n" }
         _printreturn();
     }
+    elsif ( $FORM{action} eq "blockreason" ) {
+        _blockreason( $FORM{ip} );
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "safeunblock" ) {
+        print "<div><p>Safe unblock for $FORM{ip} without flushing firewall rules...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+        _printcmd( "/usr/sbin/csf", "-dr",  $FORM{ip} );
+        _printcmd( "/usr/sbin/csf", "-trd", $FORM{ip} );
+        _printcmd( "/usr/sbin/csf", "-r" );
+        print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+        print "<div><form action='$script' method='post'><input type='hidden' name='action' value='blockreason'><input type='hidden' name='ip' value='$FORM{ip}'><input type='submit' class='btn btn-default' value='Check Again'></form></div>\n";
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "whitelistme" ) {
+        my $adminip = _remote_ip();
+        print "<div><p>Whitelisting current WHM IP $adminip...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+        if ( length $adminip and checkip( \$adminip ) ) {
+            _printcmd( "/usr/sbin/csf", "-dr",  $adminip );
+            _printcmd( "/usr/sbin/csf", "-trd", $adminip );
+            _printcmd( "/usr/sbin/csf", "-a",   $adminip, "WHM admin allow" );
+            _append_unique_line( "/etc/csf/csf.ignore", $adminip, "WHM admin ignore" );
+            _print_lfd_restart();
+        }
+        else {
+            print "Unable to detect a valid WHM remote IP\n";
+        }
+        print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "emergencyrestore" ) {
+        my $adminip = _remote_ip();
+        print "<div><p>Restoring WHM/cPanel access without flushing iptables...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+        if ( length $adminip and checkip( \$adminip ) ) {
+            _printcmd( "/usr/sbin/csf", "-dr",  $adminip );
+            _printcmd( "/usr/sbin/csf", "-trd", $adminip );
+            _printcmd( "/usr/sbin/csf", "-a",   $adminip, "WHM emergency access" );
+            _append_unique_line( "/etc/csf/csf.ignore", $adminip, "WHM emergency ignore" );
+        }
+        if ( -x "/scripts/configure_firewall_for_cpanel" ) {
+            _printcmd("/scripts/configure_firewall_for_cpanel");
+        }
+        elsif ( -x "/usr/local/cpanel/scripts/configure_firewall_for_cpanel" ) {
+            _printcmd("/usr/local/cpanel/scripts/configure_firewall_for_cpanel");
+        }
+        else {
+            print "cPanel firewall configuration helper not found\n";
+        }
+        _printcmd( "/usr/sbin/csf", "-r" );
+        _print_lfd_restart();
+        print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "ddosattack" ) {
+        _set_ddos_mode("attack");
+        _printreturn();
+    }
+    elsif ( $FORM{action} eq "ddosnormal" ) {
+        _set_ddos_mode("normal");
+        _printreturn();
+    }
     elsif ( $FORM{action} eq "callow" ) {
         print "<div><p>Cluster Allow $FORM{ip}...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
         _printcmd( "/usr/sbin/csf", "-ca", $FORM{ip}, $FORM{comment} );
@@ -2175,6 +2235,17 @@ EOD
         print "<tr><td><button onClick='\$(\"#kill\").submit();' class='btn btn-default'>Quick Unblock</button></td><td style='width:100%'><form action='$script' method='post' id='kill'><input type='submit' class='hide'><input type='hidden' name='action' value='kill'>Remove IP address <input type='text' name='ip' value='' size='18'> from the firewall (temp and perm blocks)</form></td></tr>\n";
         print "</table>\n";
 
+        my $adminip = _remote_ip();
+        print "<table class='table table-bordered table-striped'>\n";
+        print "<thead><tr><th colspan='2'>WHM Access Rescue &amp; DDoS Tools</th></tr></thead>";
+        print "<tr><td><button onClick='\$(\"#blockreason\").submit();' class='btn btn-default'>Find Block Reason</button></td><td style='width:100%'><form action='$script' method='post' id='blockreason'><input type='submit' class='hide'><input type='hidden' name='action' value='blockreason'>Check IP address <input type='text' name='ip' value='' size='18'> in csf, temporary blocks, and recent lfd logs</form></td></tr>\n";
+        print "<tr><td><button onClick='\$(\"#safeunblock\").submit();' class='btn btn-success'>Safe Unblock</button></td><td style='width:100%'><form action='$script' method='post' id='safeunblock'><input type='submit' class='hide'><input type='hidden' name='action' value='safeunblock'>Remove IP address <input type='text' name='ip' value='' size='18'> from permanent and temporary denies, then restart csf without flushing all firewall rules</form></td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='whitelistme' type='submit' class='btn btn-success'>Whitelist My WHM IP</button></form></td><td style='width:100%'>Allow and ignore the current WHM IP <code>$adminip</code>, then restart lfd</td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='emergencyrestore' type='submit' class='btn btn-warning'>Emergency Access Restore</button></form></td><td style='width:100%'>Allow the current WHM IP, run cPanel firewall port repair, and restart csf/lfd without full iptables flush</td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='ddosattack' type='submit' class='btn btn-danger'>Enable Attack Mode</button></form></td><td style='width:100%'>Temporarily tighten SYN flood, port flood, and connection limits for active attacks</td></tr>\n";
+        print "<tr><td><form action='$script' method='post'><button name='action' value='ddosnormal' type='submit' class='btn btn-default'>Restore Normal Mode</button></form></td><td style='width:100%'>Restore the standard CSF values used by this package and restart csf/lfd</td></tr>\n";
+        print "</table>\n";
+
         print "<table class='table table-bordered table-striped'>\n";
         print "<thead><tr><th colspan='2'>csf - ConfigServer Firewall</th></tr></thead>";
         print "<tr><td><form action='$script' method='post'><button name='action' value='conf' type='submit' class='btn btn-default'>Firewall Configuration</button></form></td><td style='width:100%'>Edit the configuration file for the csf firewall and lfd</td></tr>\n";
@@ -2811,6 +2882,200 @@ EOF
 sub _printreturn {
     print "<hr><div><form action='$script' method='post'><input type='hidden' name='mobi' value='$mobile'><input id='csfreturn' type='submit' class='btn btn-default' value='Return'></form></div>\n";
 
+    return;
+}
+
+sub _remote_ip {
+    my $ip = $ENV{REMOTE_ADDR} // '';
+    $ip =~ s/[^\da-fA-F\.\:]//g;
+    return $ip;
+}
+
+sub _html {
+    my $text = shift // '';
+    return Cpanel::Encoder::Tiny::safe_html_encode_str($text);
+}
+
+sub _capturecmd {
+    my @command = @_;
+    my ( $childin, $childout );
+    my $pid = IPC::Open3::open3( $childin, $childout, $childout, @command );
+    close($childin);
+    my @output = <$childout>;
+    waitpid( $pid, 0 );
+    return @output;
+}
+
+sub _append_unique_line {
+    my ( $file, $ip, $comment ) = @_;
+    my $exists = 0;
+
+    sysopen( my $IN, $file, Fcntl::O_RDWR | Fcntl::O_CREAT ) or die "Unable to open file: $!";
+    flock( $IN, Fcntl::LOCK_EX );
+    while ( my $line = <$IN> ) {
+        if ( $line =~ /^\s*\Q$ip\E(?:\s|\#|$)/ ) {
+            $exists = 1;
+            last;
+        }
+    }
+    unless ($exists) {
+        seek( $IN, 0, 2 );
+        print $IN "$ip # $comment\n";
+        print "Added $ip to $file\n";
+    }
+    else {
+        print "$ip already exists in $file\n";
+    }
+    close($IN);
+    return;
+}
+
+sub _print_lfd_restart {
+    if ( $config{THIS_UI} ) {
+        print "Signal lfd to restart\n";
+        sysopen( my $OUT, "/var/lib/csf/lfd.restart", Fcntl::O_WRONLY | Fcntl::O_CREAT ) or die "Unable to open file: $!";
+        close($OUT);
+    }
+    else {
+        print "Restarting lfd\n";
+        ConfigServer::Service::restartlfd();
+    }
+    return;
+}
+
+sub _blockreason {
+    my $ip = shift;
+
+    print "<div><p>Block reason lookup for $ip...</p>\n";
+    _resize("top");
+    print "<pre class='comment' style='white-space: pre-wrap; height: 500px; overflow: auto; resize:both; clear:both' id='output'>\n";
+    print "== csf search ==\n";
+    foreach my $line ( _capturecmd( "/usr/sbin/csf", "-g", $ip ) ) {
+        print _html($line);
+    }
+
+    print "\n== temporary deny entries ==\n";
+    _print_file_matches( "/var/lib/csf/csf.tempban", $ip, 50 );
+
+    print "\n== permanent deny entries ==\n";
+    _print_file_matches( "/etc/csf/csf.deny", $ip, 50 );
+
+    print "\n== recent lfd log matches ==\n";
+    _print_file_matches( "/var/log/lfd.log", $ip, 80 );
+    print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
+    _resize( "bot", 1 );
+
+    print "<div class='btn-group'>\n";
+    print "<a class='btn btn-success' href='$script?action=safeunblock&ip=$ip'>Safe Unblock $ip</a>\n";
+    print "<a class='btn btn-default' href='$script?action=qallow&ip=$ip&comment=WHM%20allow%20after%20block%20lookup'>Allow $ip</a>\n";
+    print "</div>\n";
+    return;
+}
+
+sub _print_file_matches {
+    my ( $file, $ip, $limit ) = @_;
+    my @matches;
+
+    if ( !-e $file ) {
+        print "File not found: $file\n";
+        return;
+    }
+
+    sysopen( my $IN, $file, Fcntl::O_RDONLY ) or do {
+        print "Unable to open $file: $!\n";
+        return;
+    };
+    flock( $IN, Fcntl::LOCK_SH );
+    while ( my $line = <$IN> ) {
+        if ( $line =~ /\Q$ip\E/ ) {
+            push @matches, $line;
+            shift @matches while @matches > $limit;
+        }
+    }
+    close($IN);
+
+    if (@matches) {
+        foreach my $line (@matches) { print _html($line) }
+    }
+    else {
+        print "No matches found in $file\n";
+    }
+    return;
+}
+
+sub _set_csf_options {
+    my %changes = @_;
+    mkdir "/var/lib/csf/backup" unless -d "/var/lib/csf/backup";
+    File::Copy::copy( "/etc/csf/csf.conf", "/var/lib/csf/backup/" . time . "_whm_ddos_mode" );
+
+    sysopen( my $IN, "/etc/csf/csf.conf", Fcntl::O_RDWR | Fcntl::O_CREAT ) or die "Unable to open file: $!";
+    flock( $IN, Fcntl::LOCK_SH );
+    my @confdata = <$IN>;
+    close($IN);
+    chomp @confdata;
+
+    my %seen;
+    foreach my $line (@confdata) {
+        foreach my $key ( keys %changes ) {
+            if ( $line =~ /^\Q$key\E\s*=/ ) {
+                $line = "$key = \"$changes{$key}\"";
+                $seen{$key} = 1;
+            }
+        }
+    }
+    foreach my $key ( sort keys %changes ) {
+        push @confdata, "$key = \"$changes{$key}\"" unless $seen{$key};
+    }
+
+    sysopen( my $OUT, "/etc/csf/csf.conf", Fcntl::O_WRONLY | Fcntl::O_CREAT ) or die "Unable to open file: $!";
+    flock( $OUT, Fcntl::LOCK_EX );
+    seek( $OUT, 0, 0 );
+    truncate( $OUT, 0 );
+    foreach my $line (@confdata) { print $OUT "$line\n" }
+    close($OUT);
+
+    ConfigServer::Config::resetconfig();
+    return;
+}
+
+sub _set_ddos_mode {
+    my $mode = shift;
+    my %changes;
+
+    if ( $mode eq "attack" ) {
+        %changes = (
+            SYNFLOOD       => "1",
+            SYNFLOOD_RATE  => "30/s",
+            SYNFLOOD_BURST => "10",
+            PORTFLOOD      => "22;tcp;3;300,80;tcp;100;5,443;tcp;100;5,2083;tcp;20;5,2087;tcp;20;5",
+            CONNLIMIT      => "22;5,80;80,443;80,2083;30,2087;30",
+            CT_LIMIT       => "300",
+            CT_INTERVAL    => "30",
+            CT_PERMANENT   => "0",
+        );
+    }
+    else {
+        %changes = (
+            SYNFLOOD       => "0",
+            SYNFLOOD_RATE  => "100/s",
+            SYNFLOOD_BURST => "150",
+            PORTFLOOD      => "22;tcp;5;300,80;tcp;250;5,443;tcp;250;5",
+            CONNLIMIT      => "",
+            CT_LIMIT       => "0",
+            CT_INTERVAL    => "30",
+            CT_PERMANENT   => "0",
+        );
+    }
+
+    print "<div><p>Applying " . ( $mode eq "attack" ? "Attack" : "Normal" ) . " Mode...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
+    _set_csf_options(%changes);
+    foreach my $key ( sort keys %changes ) {
+        print "$key = \"$changes{$key}\"\n";
+    }
+    print "\nRestarting csf and lfd\n";
+    _printcmd( "/usr/sbin/csf", "-r" );
+    _print_lfd_restart();
+    print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
     return;
 }
 
