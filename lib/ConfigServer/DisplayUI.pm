@@ -2152,58 +2152,82 @@ EOD
         if     ( -e "/var/lib/csf/lfd.restart" ) { $status .= "<div class='bs-callout bs-callout-info text-center'><h4>lfd restart request pending</h4></div>" }
         unless ( $config{RESTRICT_SYSLOG} )      { $status .= "<div class='bs-callout bs-callout-warning text-center'><h4>WARNING: RESTRICT_SYSLOG is disabled. See SECURITY WARNING in Firewall Configuration</h4></div>\n" }
 
-        my $tempcnt = 0;
+        my $tempban_count = 0;
         if ( !-z "/var/lib/csf/csf.tempban" ) {
             sysopen( my $IN, "/var/lib/csf/csf.tempban", Fcntl::O_RDWR );
             flock( $IN, Fcntl::LOCK_EX );
             my @data = <$IN>;
             close($IN);
             chomp @data;
-            $tempcnt = scalar @data;
+            $tempban_count = scalar @data;
         }
-        my $tempbans = "(Currently: <code>$tempcnt</code> temp IP bans, ";
-        $tempcnt = 0;
+        my $tempbans = "(Currently: <code>$tempban_count</code> temp IP bans, ";
+        my $tempallow_count = 0;
         if ( !-z "/var/lib/csf/csf.tempallow" ) {
             sysopen( my $IN, "/var/lib/csf/csf.tempallow", Fcntl::O_RDWR );
             flock( $IN, Fcntl::LOCK_EX );
             my @data = <$IN>;
             close($IN);
             chomp @data;
-            $tempcnt = scalar @data;
+            $tempallow_count = scalar @data;
         }
-        $tempbans .= "<code>$tempcnt</code> temp IP allows)";
+        $tempbans .= "<code>$tempallow_count</code> temp IP allows)";
 
-        my $permcnt = 0;
+        my $permban_count = 0;
         if ( !-z "/etc/csf/csf.deny" ) {
             sysopen( my $IN, "/etc/csf/csf.deny", Fcntl::O_RDWR );
             flock( $IN, Fcntl::LOCK_SH );
             while ( my $line = <$IN> ) {
                 chomp $line;
                 if ( $line =~ /^[#\n\r]/ )          { next }
-                if ( $line =~ /$ipv4reg|$ipv6reg/ ) { $permcnt++ }
+                if ( $line =~ /$ipv4reg|$ipv6reg/ ) { $permban_count++ }
             }
             close($IN);
         }
-        my $permbans = "(Currently: <code>$permcnt</code> permanent IP bans)";
+        my $permbans = "(Currently: <code>$permban_count</code> permanent IP bans)";
 
-        $permcnt = 0;
+        my $permallow_count = 0;
         if ( !-z "/etc/csf/csf.allow" ) {
             sysopen( my $IN, "/etc/csf/csf.allow", Fcntl::O_RDWR );
             flock( $IN, Fcntl::LOCK_SH );
             while ( my $line = <$IN> ) {
                 chomp $line;
                 if ( $line =~ /^[#\n\r]/ )          { next }
-                if ( $line =~ /$ipv4reg|$ipv6reg/ ) { $permcnt++ }
+                if ( $line =~ /$ipv4reg|$ipv6reg/ ) { $permallow_count++ }
             }
             close($IN);
         }
-        my $permallows = "(Currently: <code>$permcnt</code> permanent IP allows)";
+        my $permallows = "(Currently: <code>$permallow_count</code> permanent IP allows)";
 
         print $status;
 
         print "<div class='bahari-shell'>\n";
         print "<h3>BahariHost CSF Control <span class='bahari-badge'>WHM Hardened</span></h3>\n";
         print "<p>Firewall rescue, DDoS mode, admin safe IPs, recent block review, and rollback tools are ready in this customized CSF panel.</p>\n";
+        print "</div>\n";
+
+        my $adminip = _remote_ip();
+        my $testing_state = $config{TESTING} ? "Testing On" : "Live";
+        my $testing_class = $config{TESTING} ? "is-warn" : "is-ok";
+        my $lfd_state     = $config{LF_DAEMON} ? "Enabled" : "Disabled";
+        my $lfd_class     = $config{LF_DAEMON} ? "is-ok" : "is-warn";
+        my $attack_state  = ( $config{SYNFLOOD} or $config{CT_LIMIT} or length $config{CONNLIMIT} ) ? "Attack Mode" : "Normal";
+        my $attack_class  = $attack_state eq "Attack Mode" ? "is-danger" : "is-ok";
+
+        print "<div class='bahari-dashboard'>\n";
+        print "<div class='bahari-card $testing_class'><span>Firewall Mode</span><strong>$testing_state</strong><small>TESTING = $config{TESTING}</small></div>\n";
+        print "<div class='bahari-card $lfd_class'><span>lfd Protection</span><strong>$lfd_state</strong><small>Login failure daemon</small></div>\n";
+        print "<div class='bahari-card $attack_class'><span>DDoS Profile</span><strong>$attack_state</strong><small>SYN/connection controls</small></div>\n";
+        print "<div class='bahari-card'><span>Admin IP</span><strong>$adminip</strong><small>Use Safe Admin IP to trust it</small></div>\n";
+        print "<div class='bahari-card'><span>Blocks</span><strong>$permban_count / $tempban_count</strong><small>Permanent / temporary</small></div>\n";
+        print "<div class='bahari-card'><span>Allowed IPs</span><strong>$permallow_count</strong><small>Permanent allows</small></div>\n";
+        print "</div>\n";
+
+        print "<div class='bahari-actions'>\n";
+        print "<form action='$script' method='post'><button name='action' value='attackdashboard' type='submit' class='btn btn-default'>Recent Attack Dashboard</button></form>\n";
+        print "<form action='$script' method='post'><button name='action' value='recommendedhardening' type='submit' class='btn btn-primary'>Apply Recommended Hardening</button></form>\n";
+        print "<form action='$script' method='post'><button name='action' value='ddosattack' type='submit' class='btn btn-danger'>Enable Attack Mode</button></form>\n";
+        print "<form action='$script' method='post'><button name='action' value='whitelistme' type='submit' class='btn btn-success'>Whitelist My WHM IP</button></form>\n";
         print "</div>\n";
 
         print "<div class='normalcontainer'>\n";
@@ -2264,7 +2288,6 @@ EOD
         print "<tr><td><button onClick='\$(\"#kill\").submit();' class='btn btn-default'>Quick Unblock</button></td><td style='width:100%'><form action='$script' method='post' id='kill'><input type='submit' class='hide'><input type='hidden' name='action' value='kill'>Remove IP address <input type='text' name='ip' value='' size='18'> from the firewall (temp and perm blocks)</form></td></tr>\n";
         print "</table>\n";
 
-        my $adminip = _remote_ip();
         print "<table class='table table-bordered table-striped bahari-rescue-table'>\n";
         print "<thead><tr><th colspan='2'>WHM Access Rescue &amp; DDoS Tools</th></tr></thead>";
         print "<tr><td><button onClick='\$(\"#blockreason\").submit();' class='btn btn-default'>Find Block Reason</button></td><td style='width:100%'><form action='$script' method='post' id='blockreason'><input type='submit' class='hide'><input type='hidden' name='action' value='blockreason'>Check IP address <input type='text' name='ip' value='' size='18'> in csf, temporary blocks, and recent lfd logs</form></td></tr>\n";
