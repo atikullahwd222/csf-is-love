@@ -61,6 +61,70 @@ prepare_sources() {
 
 timestamp="$(date +%Y%m%d%H%M%S)"
 
+csf_exists() {
+    command -v csf >/dev/null 2>&1 || [ -d /etc/csf ] || [ -d /usr/local/csf ]
+}
+
+is_bahari_csf() {
+    [ -f /usr/local/csf/bahari_version.txt ] && return 0
+    grep -q "BIT CSF Control" /usr/local/csf/lib/ConfigServer/DisplayUI.pm 2>/dev/null && return 0
+    grep -q "BahariHost CSF Control" /usr/local/csf/lib/ConfigServer/DisplayUI.pm 2>/dev/null && return 0
+    return 1
+}
+
+backup_existing_csf_tree() {
+    local backup="/root/csf-before-bit-replace-$timestamp.tar.gz"
+    local paths=()
+
+    [ -e /etc/csf ] && paths+=("/etc/csf")
+    [ -e /usr/local/csf ] && paths+=("/usr/local/csf")
+    [ -e /usr/local/cpanel/whostmgr/docroot/cgi/configserver ] && paths+=("/usr/local/cpanel/whostmgr/docroot/cgi/configserver")
+    [ -e /usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl ] && paths+=("/usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl")
+
+    if [ "${#paths[@]}" -gt 0 ]; then
+        tar -czf "$backup" "${paths[@]}" 2>/dev/null || true
+        echo "Existing CSF backup: $backup"
+    fi
+}
+
+remove_csf_package() {
+    if command -v rpm >/dev/null 2>&1 && rpm -q cpanel-csf >/dev/null 2>&1; then
+        echo "Removing existing cpanel-csf package..."
+        if command -v dnf >/dev/null 2>&1; then
+            dnf remove -y cpanel-csf
+        elif command -v yum >/dev/null 2>&1; then
+            yum remove -y cpanel-csf
+        else
+            rpm -e cpanel-csf || true
+        fi
+    elif command -v dpkg >/dev/null 2>&1 && dpkg -s cpanel-csf >/dev/null 2>&1; then
+        echo "Removing existing cpanel-csf package..."
+        apt remove -y cpanel-csf
+    fi
+}
+
+move_leftover_csf_paths() {
+    for path in /etc/csf /usr/local/csf /usr/local/cpanel/whostmgr/docroot/cgi/configserver; do
+        if [ -e "$path" ]; then
+            local dest="${path}.replaced-by-bit.$timestamp"
+            echo "Moving leftover $path to $dest"
+            mv "$path" "$dest"
+        fi
+    done
+}
+
+replace_foreign_csf() {
+    if csf_exists && ! is_bahari_csf; then
+        echo "Existing CSF detected, but BIT/BahariHost hardening marker was not found."
+        echo "Backing up and replacing it with this hardened build..."
+        backup_existing_csf_tree
+        systemctl stop lfd 2>/dev/null || true
+        systemctl stop csf 2>/dev/null || true
+        remove_csf_package
+        move_leftover_csf_paths
+    fi
+}
+
 install_csf() {
     if command -v csf >/dev/null 2>&1 && [ -d /etc/csf ]; then
         return
@@ -99,6 +163,7 @@ set_csf_option() {
     fi
 }
 
+replace_foreign_csf
 install_csf
 prepare_sources
 
@@ -110,6 +175,9 @@ backup_file /usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl
 backup_file /usr/local/cpanel/whostmgr/docroot/cgi/configserver/csf/configserver.css
 
 echo "Installing modified WHM UI files..."
+mkdir -p /usr/local/csf/lib/ConfigServer
+mkdir -p /usr/local/cpanel/whostmgr/docroot/cgi/configserver/csf
+mkdir -p /usr/local/cpanel/whostmgr/docroot/templates
 install -m 0644 "$SOURCE_DIR/lib/ConfigServer/DisplayUI.pm" /usr/local/csf/lib/ConfigServer/DisplayUI.pm
 install -m 0700 "$SOURCE_DIR/cpanel/csf.cgi" /usr/local/cpanel/whostmgr/docroot/cgi/configserver/csf.cgi
 install -m 0644 "$SOURCE_DIR/cpanel/csf.tmpl" /usr/local/cpanel/whostmgr/docroot/templates/csf.tmpl

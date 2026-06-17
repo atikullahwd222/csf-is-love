@@ -1,5 +1,9 @@
 # BahariHost CSF Changelog
 
+## 1.2.5 - 2026-06-17
+
+- Added setup preflight replacement for existing non-BIT/non-BahariHost CSF installs before applying the hardened build.
+
 ## 1.2.4 - 2026-06-17
 
 - Hardened dashboard command execution so missing server tools report cleanly instead of causing a WHM 500 page.
