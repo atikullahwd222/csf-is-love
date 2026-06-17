@@ -1,5 +1,9 @@
 # BahariHost CSF Changelog
 
+## 1.2.4 - 2026-06-17
+
+- Hardened dashboard command execution so missing server tools report cleanly instead of causing a WHM 500 page.
+
 ## 1.2.3 - 2026-06-17
 
 - Added cPHulk and Imunify360 baseline buttons to the CSF dashboard.

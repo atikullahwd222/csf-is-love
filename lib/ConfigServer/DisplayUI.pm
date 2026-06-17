@@ -2566,11 +2566,23 @@ sub _printcmd {
     my @command = @_;
 
     my ( $childin, $childout );
-    my $pid = IPC::Open3::open3( $childin, $childout, $childout, @command );
+    my $pid = eval { IPC::Open3::open3( $childin, $childout, $childout, @command ) };
+    if ($@) {
+        print "Unable to run @command: $@\n";
+        return;
+    }
+    close($childin);
     while (<$childout>) { print $_ }
     waitpid( $pid, 0 );
 
     return;
+}
+
+sub _first_executable {
+    foreach my $path (@_) {
+        return $path if -x $path;
+    }
+    return "";
 }
 
 sub _getethdev {
@@ -3461,7 +3473,7 @@ sub _recommended_hardening {
 }
 
 sub _cphulk_baseline {
-    my $whmapi1 = -x "/usr/local/cpanel/bin/whmapi1" ? "/usr/local/cpanel/bin/whmapi1" : -x "/usr/bin/whmapi1" ? "/usr/bin/whmapi1" : -x "/bin/whmapi1" ? "/bin/whmapi1" : "";
+    my $whmapi1 = _first_executable( "/usr/local/cpanel/bin/whmapi1", "/usr/bin/whmapi1", "/bin/whmapi1" );
 
     print "<div><p>Applying cPHulk baseline...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
     if ( !length $whmapi1 ) {
@@ -3482,7 +3494,13 @@ sub _cphulk_baseline {
             _printcmd("/scripts/restartsrv_cphulkd");
         }
         else {
-            _printcmd( "systemctl", "restart", "cphulkd" );
+            my $systemctl = _first_executable( "/usr/bin/systemctl", "/bin/systemctl" );
+            if ( length $systemctl ) {
+                _printcmd( $systemctl, "restart", "cphulkd" );
+            }
+            else {
+                print "cphulkd restart helper not found. Please restart cphulkd manually if needed.\n";
+            }
         }
     }
     print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
@@ -3490,7 +3508,7 @@ sub _cphulk_baseline {
 }
 
 sub _imunify_baseline {
-    my $agent = -x "/usr/bin/imunify360-agent" ? "/usr/bin/imunify360-agent" : -x "/bin/imunify360-agent" ? "/bin/imunify360-agent" : -x "/usr/local/bin/imunify360-agent" ? "/usr/local/bin/imunify360-agent" : "";
+    my $agent = _first_executable( "/usr/bin/imunify360-agent", "/bin/imunify360-agent", "/usr/local/bin/imunify360-agent" );
     my @updates = (
         '{"DOS":{"enabled":true,"default_limit":100}}',
         '{"ENHANCED_DOS":{"enabled":true,"default_limit":100}}',
@@ -3511,8 +3529,9 @@ sub _imunify_baseline {
             print "imunify360-agent config update $json\n";
             _printcmd( $agent, "config", "update", $json );
         }
-        if ( -x "/bin/systemctl" or -x "/usr/bin/systemctl" ) {
-            _printcmd( "systemctl", "restart", "imunify360" );
+        my $systemctl = _first_executable( "/usr/bin/systemctl", "/bin/systemctl" );
+        if ( length $systemctl ) {
+            _printcmd( $systemctl, "restart", "imunify360" );
         }
         print "\nSome options depend on the installed Imunify360 version/license. Unsupported keys may be ignored or reported above.\n";
     }
