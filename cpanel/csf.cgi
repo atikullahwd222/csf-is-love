@@ -149,7 +149,7 @@ unless ($is_raw_output) {
     my $cssv = $myv;
     $cssv =~ s/[^\w.-]/_/g;
     print <<EOF;
-	<link href='$images/configserver.css?v=$cssv-bahari4' rel='stylesheet' type='text/css'>
+	<link href='$images/configserver.css?v=$cssv-bahari5' rel='stylesheet' type='text/css'>
 <style>
 .toplink {
 top: 140px;

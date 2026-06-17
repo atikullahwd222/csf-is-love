@@ -1355,12 +1355,18 @@ function CSFexpand(obj){
 }
 </script>
 EOF
-        print "<style>.hidepiece\{display:none\}</style>\n";
+        print "<style>.hidepiece\{display:none\}.config-detail\{display:none\}</style>\n";
         open( my $DIV, "<", "/usr/local/csf/lib/csf.div" );
         flock( $DIV, Fcntl::LOCK_SH );
         my @divdata = <$DIV>;
         close($DIV);
         print @divdata;
+        print "<div class='csf-config-toolbar'>\n";
+        print "<input type='text' id='CSFconfigSearch' placeholder='Search setting name or text...' autocomplete='off'>\n";
+        print "<button type='button' class='btn btn-default' id='CSFconfigClear'>Clear</button>\n";
+        print "<button type='button' class='btn btn-default' id='CSFdetailsToggle' data-open='0'>Show Details</button>\n";
+        print "<span id='CSFconfigResult' class='csf-config-result'></span>\n";
+        print "</div>\n";
         print "<div id='paginatediv2' class='text-center'></div>\n";
         print "<form action='$script' method='post'>\n";
         print "<input type='hidden' name='action' value='saveconf'>\n";
@@ -1397,10 +1403,10 @@ EOF
                 }
                 if ($status) { $class = "value-warning"; $showrange = " Recommended range: $range (Default: $default)" }
                 if ( $config{RESTRICT_UI} and $cleanname eq "CLUSTER_KEY" ) {
-                    print "<div class='$class'><b>$start</b> = <input type='text' value='********' size='14' disabled> (hidden restricted UI item)</div>\n";
+                    print "<div class='$class config-option' data-config-name='$cleanname'><b>$start</b> = <input type='text' value='********' size='14' disabled> (hidden restricted UI item)</div>\n";
                 }
                 elsif ( $restricted{$cleanname} ) {
-                    print "<div class='$class'><b>$start</b> = <input type='text' onFocus='CSFexpand(this);' onkeyup='CSFexpand(this);' value='$end' size='$size' disabled> (restricted UI item)</div>\n";
+                    print "<div class='$class config-option' data-config-name='$cleanname'><b>$start</b> = <input type='text' onFocus='CSFexpand(this);' onkeyup='CSFexpand(this);' value='$end' size='$size' disabled> (restricted UI item)</div>\n";
                 }
                 else {
                     if ( $range eq "0-1" ) {
@@ -1410,7 +1416,7 @@ EOF
                         my $switch_active_1  = "";
                         if ( $end == 0 ) { $switch_checked_0 = "checked"; $switch_active_0 = "active" }
                         if ( $end == 1 ) { $switch_checked_1 = "checked"; $switch_active_1 = "active" }
-                        print "<div class='$class'><b>$start</b> = ";
+                        print "<div class='$class config-option' data-config-name='$cleanname'><b>$start</b> = ";
                         print "<div class='btn-group' data-toggle='buttons'>\n";
                         print "<label class='btn btn-default btn-csf-config $switch_active_0'>\n";
                         print "<input type='radio' name='${name}' value='0' $switch_checked_0> Off\n";
@@ -1422,7 +1428,7 @@ EOF
                     }
                     elsif ( $range =~ /^(\d+)-(\d+)$/ and !( -e "/etc/csuibuttondisable" ) and ( $showto - $showfrom <= 20 ) and $end >= $showfrom and $end <= $showto ) {
                         my $selected = "";
-                        print "<div class='$class'><b>$start</b> = <select name='$name'>\n";
+                        print "<div class='$class config-option' data-config-name='$cleanname'><b>$start</b> = <select name='$name'>\n";
                         for ( $showfrom .. $showto ) {
                             if   ( $_ == $end ) { $selected = "selected" }
                             else                { $selected = "" }
@@ -1431,7 +1437,7 @@ EOF
                         print "</select></div>\n";
                     }
                     else {
-                        print "<div class='$class'><b>$start</b> = <input type='text' onFocus='CSFexpand(this);' onkeyup='CSFexpand(this);' name='$name' value='$end' size='$size'>$showrange</div>\n";
+                        print "<div class='$class config-option' data-config-name='$cleanname'><b>$start</b> = <input type='text' onFocus='CSFexpand(this);' onkeyup='CSFexpand(this);' name='$name' value='$end' size='$size'>$showrange</div>\n";
                     }
                 }
             }
@@ -1446,7 +1452,7 @@ EOF
                 }
                 if ( $line =~ /^\# / and $comment == 0 ) {
                     $comment = 1;
-                    print "<div class='comment'>\n";
+                    print "<div class='comment config-detail'>\n";
                 }
                 $line =~ s/\#//g;
                 $line = Cpanel::Encoder::Tiny::safe_html_encode_str($line);
@@ -1468,7 +1474,44 @@ var pagecontent=new virtualpaginate({
 EOD
         print "pagecontent.buildpagination(['paginatediv','paginatediv2'],[";
         foreach my $line (@divnames) { print "'$line'," }
-        print "''])\npagecontent.showall();\n</script>\n";
+        print "''])\npagecontent.showall();\n";
+        print <<'EOD';
+function CSFfilterConfig(){
+	var q = $('#CSFconfigSearch').val().toLowerCase();
+	var detailsOpen = $('#CSFdetailsToggle').attr('data-open') == '1';
+	var matches = 0;
+	if (q.length) { pagecontent.showall(); }
+	$('.virtualpage').each(function(){
+		var page = $(this);
+		var pageHasMatch = false;
+		page.find('.config-option').each(function(){
+			var item = $(this);
+			var text = item.text().toLowerCase();
+			var ok = !q.length || text.indexOf(q) >= 0;
+			item.toggle(ok);
+			if (ok && q.length) { matches++; pageHasMatch = true; }
+		});
+		page.find('.config-detail').each(function(){
+			var detail = $(this);
+			var ok = !q.length || detail.text().toLowerCase().indexOf(q) >= 0 || pageHasMatch;
+			detail.toggle(detailsOpen && ok);
+			if (ok && q.length) { pageHasMatch = true; }
+		});
+		if (q.length) { page.toggle(pageHasMatch); }
+		else { page.show(); }
+	});
+	$('#CSFconfigResult').text(q.length ? (matches + ' setting matches') : '');
+}
+$('#CSFconfigSearch').on('keyup change', CSFfilterConfig);
+$('#CSFconfigClear').on('click', function(){ $('#CSFconfigSearch').val(''); CSFfilterConfig(); });
+$('#CSFdetailsToggle').on('click', function(){
+	var open = $(this).attr('data-open') == '1';
+	$(this).attr('data-open', open ? '0' : '1').text(open ? 'Show Details' : 'Hide Details');
+	CSFfilterConfig();
+});
+CSFfilterConfig();
+</script>
+EOD
         print "<br /><div class='text-center'><input type='submit' class='btn btn-default' value='Change'></div>\n";
         print "</form>\n";
         _printreturn();
